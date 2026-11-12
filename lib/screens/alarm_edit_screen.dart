@@ -1,23 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:isar/isar.dart';
+
 import '../models/alarm.dart';
 import '../services/alarm_service.dart';
+import '../theme/app_theme.dart';
 
+/// Create or edit one alarm.
+///
+/// Information architecture follows docs/product-design.md: the six settings
+/// people actually change are visible, everything else is behind "Advanced".
+/// The label is editable inside the collapsing toolbar, so naming an alarm
+/// never needs a dialog.
 class AlarmEditScreen extends StatefulWidget {
-  final Alarm alarm;
-  final Isar isar;
-  
   const AlarmEditScreen({
-    Key? key,
+    super.key,
     required this.alarm,
     required this.isar,
-  }) : super(key: key);
+  });
+
+  final Alarm alarm;
+  final Isar isar;
 
   @override
   State<AlarmEditScreen> createState() => _AlarmEditScreenState();
 }
 
 class _AlarmEditScreenState extends State<AlarmEditScreen> {
+  static const List<Map<String, String>> _alarmSounds = [
+    {'id': 'default', 'name': 'Default'},
+    {'id': 'gentle_wake', 'name': 'Gentle wake'},
+    {'id': 'energetic_morning', 'name': 'Energetic morning'},
+    {'id': 'nature_birds', 'name': 'Nature birds'},
+    {'id': 'classic_beep', 'name': 'Classic beep'},
+  ];
+
+  static const _weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
   late TextEditingController _labelController;
   late TimeOfDay _selectedTime;
   late MissionType _selectedMission;
@@ -26,462 +44,657 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   late Set<int> _repeatDays;
   late String _selectedSound;
   late bool _vibrate;
-  
-  // Available alarm sounds
-  static const List<Map<String, String>> _alarmSounds = [
-    {'id': 'default', 'name': 'Default'},
-    {'id': 'gentle_wake', 'name': 'Gentle Wake'},
-    {'id': 'energetic_morning', 'name': 'Energetic Morning'},
-    {'id': 'nature_birds', 'name': 'Nature Birds'},
-    {'id': 'classic_beep', 'name': 'Classic Beep'},
-  ];
-  
+
+  // Advanced.
+  late bool _smartAlarm;
+  late int _smartWindow;
+  late bool _gentleWake;
+  late int _gentleSeconds;
+  late int _snoozeMinutes;
+  late int _maxSnooze;
+
+  bool _showAdvanced = false;
+  bool _saving = false;
+
+  bool get _isNew => widget.alarm.id == Isar.autoIncrement;
+
   @override
   void initState() {
     super.initState();
-    _labelController = TextEditingController(text: widget.alarm.label);
-    _selectedTime = TimeOfDay.fromDateTime(widget.alarm.time);
-    _selectedMission = widget.alarm.missionType;
-    _difficulty = widget.alarm.missionDifficulty;
-    _wakeUpCheck = widget.alarm.wakeUpCheckEnabled;
-    _repeatDays = widget.alarm.repeatDays.toSet();
-    _selectedSound = widget.alarm.soundPath;
-    _vibrate = widget.alarm.vibrate;
+    final alarm = widget.alarm;
+    _labelController = TextEditingController(text: alarm.label);
+    _selectedTime = TimeOfDay.fromDateTime(alarm.time);
+    _selectedMission = alarm.missionType;
+    _difficulty = alarm.missionDifficulty;
+    _wakeUpCheck = alarm.wakeUpCheckEnabled;
+    _repeatDays = alarm.repeatDays.toSet();
+    _selectedSound = alarm.soundPath;
+    _vibrate = alarm.vibrate;
+
+    _smartAlarm = alarm.smartAlarmEnabled;
+    _smartWindow = alarm.smartAlarmWindowMinutes;
+    _gentleWake = alarm.gentleWakeEnabled;
+    _gentleSeconds = alarm.gentleWakeDurationSeconds;
+    _snoozeMinutes = alarm.snoozeDurationMinutes;
+    _maxSnooze = alarm.maxSnoozeCount;
   }
-  
+
   @override
   void dispose() {
     _labelController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.alarm.id == Isar.autoIncrement ? 'New Alarm' : 'Edit Alarm'),
-        backgroundColor: const Color(0xFF1A1A2E),
-        actions: [
-          if (widget.alarm.id != Isar.autoIncrement)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: _deleteAlarm,
-              color: const Color(0xFFFF3366),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Time picker
-          _buildTimeSection(),
-          const SizedBox(height: 24),
-          
-          // Label
-          _buildLabelSection(),
-          const SizedBox(height: 24),
-          
-          // Repeat days
-          _buildRepeatSection(),
-          const SizedBox(height: 24),
-          
-          // Mission selection
-          _buildMissionSection(),
-          const SizedBox(height: 24),
-          
-          // Difficulty
-          _buildDifficultySection(),
-          const SizedBox(height: 24),
-          
-          // Sound selection
-          _buildSoundSection(),
-          const SizedBox(height: 24),
-          
-          // Vibration toggle
-          _buildVibrationSection(),
-          const SizedBox(height: 24),
-          
-          // Wake-up check
-          _buildWakeUpCheckSection(),
-          const SizedBox(height: 40),
-          
-          // Save button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _saveAlarm,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00F5FF),
-                foregroundColor: const Color(0xFF0F0F1E),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Text(
-                'Save Alarm',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  String get _timeLabel {
+    final h = _selectedTime.hour.toString().padLeft(2, '0');
+    final m = _selectedTime.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
-  
-  Widget _buildTimeSection() {
-    return Card(
-      child: InkWell(
-        onTap: _pickTime,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Time',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                _selectedTime.format(context),
-                style: const TextStyle(
-                  color: Color(0xFF00F5FF),
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildLabelSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: TextField(
-          controller: _labelController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            labelText: 'Label',
-            labelStyle: TextStyle(color: Colors.white70),
-            border: InputBorder.none,
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildRepeatSection() {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Repeat',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: List.generate(7, (index) {
-                final isSelected = _repeatDays.contains(index);
-                return FilterChip(
-                  label: Text(days[index]),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _repeatDays.add(index);
-                      } else {
-                        _repeatDays.remove(index);
-                      }
-                    });
-                  },
-                  selectedColor: const Color(0xFF00F5FF),
-                  labelStyle: TextStyle(
-                    color: isSelected ? const Color(0xFF0F0F1E) : Colors.white,
-                  ),
-                );
-              }),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildMissionSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Wake-up Mission',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: MissionType.values.map((mission) {
-                final isSelected = _selectedMission == mission;
-                return FilterChip(
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(mission.icon),
-                      const SizedBox(width: 4),
-                      Text(mission.displayName),
-                    ],
-                  ),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() => _selectedMission = mission);
-                    }
-                  },
-                  selectedColor: const Color(0xFF00F5FF),
-                  labelStyle: TextStyle(
-                    color: isSelected ? const Color(0xFF0F0F1E) : Colors.white,
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildDifficultySection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Difficulty: $_difficulty / 5',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Slider(
-              value: _difficulty.toDouble(),
-              min: 1,
-              max: 5,
-              divisions: 4,
-              activeColor: const Color(0xFF00F5FF),
-              onChanged: (value) {
-                setState(() => _difficulty = value.toInt());
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildSoundSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Alarm Sound',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A3E),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButton<String>(
-                value: _selectedSound,
-                isExpanded: true,
-                dropdownColor: const Color(0xFF2A2A3E),
-                underline: const SizedBox(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
-                icon: const Icon(
-                  Icons.arrow_drop_down,
-                  color: Color(0xFF00F5FF),
-                ),
-                items: _alarmSounds.map((sound) {
-                  return DropdownMenuItem<String>(
-                    value: sound['id'],
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.music_note,
-                          color: Color(0xFF00F5FF),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(sound['name']!),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedSound = value);
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildVibrationSection() {
-    return Card(
-      child: SwitchListTile(
-        title: const Text(
-          'Vibration',
-          style: TextStyle(color: Colors.white),
-        ),
-        subtitle: const Text(
-          'Vibrate when alarm rings',
-          style: TextStyle(color: Colors.white70),
-        ),
-        secondary: Icon(
-          _vibrate ? Icons.vibration : Icons.phone_android,
-          color: _vibrate ? const Color(0xFF00F5FF) : Colors.white38,
-        ),
-        value: _vibrate,
-        onChanged: (value) {
-          setState(() => _vibrate = value);
-        },
-        activeColor: const Color(0xFF00F5FF),
-      ),
-    );
-  }
-  
-  Widget _buildWakeUpCheckSection() {
-    return Card(
-      child: SwitchListTile(
-        title: const Text(
-          'Wake-up Verification',
-          style: TextStyle(color: Colors.white),
-        ),
-        subtitle: const Text(
-          'Verify you\'re awake 5 minutes after dismissing',
-          style: TextStyle(color: Colors.white70),
-        ),
-        value: _wakeUpCheck,
-        onChanged: (value) {
-          setState(() => _wakeUpCheck = value);
-        },
-        activeColor: const Color(0xFF00F5FF),
-      ),
-    );
-  }
-  
-  void _pickTime() async {
+
+  Future<void> _pickTime() async {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
+      helpText: 'Alarm time',
     );
-    
-    if (picked != null) {
-      setState(() => _selectedTime = picked);
-    }
+    if (picked != null) setState(() => _selectedTime = picked);
   }
-  
-  void _saveAlarm() async {
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+
     final now = DateTime.now();
-    final alarmTime = DateTime(
+    final time = DateTime(
       now.year,
       now.month,
       now.day,
       _selectedTime.hour,
       _selectedTime.minute,
     );
-    
-    final sortedRepeatDays = _repeatDays.toList()..sort();
-    
+
+    final label = _labelController.text.trim();
     widget.alarm
-      ..time = alarmTime
-      ..label = _labelController.text
+      ..time = time
+      ..label = label.isEmpty ? 'Alarm' : label
       ..missionType = _selectedMission
       ..missionDifficulty = _difficulty
       ..wakeUpCheckEnabled = _wakeUpCheck
-      ..repeatDays = sortedRepeatDays
+      ..repeatDays = (_repeatDays.toList()..sort())
       ..soundPath = _selectedSound
       ..vibrate = _vibrate
-      ..isEnabled = true;
-    
+      ..isEnabled = true
+      ..smartAlarmEnabled = _smartAlarm
+      ..smartAlarmWindowMinutes = _smartWindow
+      ..gentleWakeEnabled = _gentleWake
+      ..gentleWakeDurationSeconds = _gentleSeconds
+      ..snoozeDurationMinutes = _snoozeMinutes
+      ..maxSnoozeCount = _maxSnooze;
+
     await AlarmService.scheduleAlarm(widget.alarm);
-    
-    if (mounted) {
-      Navigator.pop(context);
-    }
+
+    if (!mounted) return;
+    setState(() => _saving = false);
+    Navigator.of(context).pop();
   }
-  
-  void _deleteAlarm() async {
-    final confirm = await showDialog<bool>(
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Alarm?'),
-        content: const Text('This action cannot be undone.'),
+        title: const Text('Delete this alarm?'),
+        content: const Text('This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Color(0xFFFF3366)),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    await AlarmService.deleteAlarm(widget.alarm);
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 208,
+            backgroundColor: AppColors.background,
+            surfaceTintColor: Colors.transparent,
+            title: Text(_labelController.text.isEmpty
+                ? 'Alarm'
+                : _labelController.text),
+            actions: [
+              if (!_isNew)
+                IconButton(
+                  tooltip: 'Delete',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _delete,
+                ),
+              IconButton(
+                tooltip: 'Save',
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check),
+                onPressed: _save,
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 56, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Hero time: one tap to change.
+                    InkWell(
+                      onTap: _pickTime,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                          _timeLabel,
+                          style: theme.textTheme.displayMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Editable label, inside the toolbar.
+                    TextField(
+                      controller: _labelController,
+                      style: theme.textTheme.titleMedium,
+                      decoration: const InputDecoration(
+                        hintText: 'Alarm name',
+                        filled: false,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionLabel('Repeat', theme),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (var i = 0; i < 7; i++)
+                        _DayChip(
+                          label: _weekdays[i],
+                          selected: _repeatDays.contains(i),
+                          onTap: () => setState(() {
+                            if (_repeatDays.contains(i)) {
+                              _repeatDays.remove(i);
+                            } else {
+                              _repeatDays.add(i);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _repeatSummary(),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+                  _sectionLabel('Wake-up mission', theme),
+                  const SizedBox(height: 10),
+                  _MissionPicker(
+                    selected: _selectedMission,
+                    onSelected: (m) => setState(() => _selectedMission = m),
+                  ),
+
+                  const SizedBox(height: 28),
+                  _sectionLabel('Primary', theme),
+                  const SizedBox(height: 8),
+                  _SettingRow(
+                    icon: Icons.route_outlined,
+                    title: 'Difficulty',
+                    subtitle: _difficultyLabel(_difficulty),
+                    onTap: () => setState(
+                      () => _difficulty = _difficulty >= 5 ? 1 : _difficulty + 1,
+                    ),
+                  ),
+                  _SettingRow(
+                    icon: Icons.music_note_outlined,
+                    title: 'Sound',
+                    subtitle: _soundName(_selectedSound),
+                    onTap: _pickSound,
+                  ),
+                  _SettingRow(
+                    icon: Icons.vibration,
+                    title: 'Vibrate',
+                    trailing: Switch(
+                      value: _vibrate,
+                      onChanged: (v) => setState(() => _vibrate = v),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  _AdvancedToggle(
+                    expanded: _showAdvanced,
+                    onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+                  ),
+                  // Small tier: 200ms, per docs/reference-interactions.md.
+                  AnimatedCrossFade(
+                    firstChild: const SizedBox(width: double.infinity),
+                    secondChild: _buildAdvanced(theme),
+                    crossFadeState: _showAdvanced
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    duration: const Duration(milliseconds: 200),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
-    
-    if (confirm == true) {
-      await AlarmService.deleteAlarm(widget.alarm);
-      if (mounted) {
-        Navigator.pop(context);
-      }
+  }
+
+  Widget _buildAdvanced(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        _SettingRow(
+          icon: Icons.bedtime_outlined,
+          title: 'Smart alarm',
+          subtitle: 'Wake in light sleep, up to $_smartWindow min early',
+          trailing: Switch(
+            value: _smartAlarm,
+            onChanged: (v) => setState(() => _smartAlarm = v),
+          ),
+        ),
+        if (_smartAlarm)
+          _StepperRow(
+            label: 'Window',
+            value: '$_smartWindow min',
+            onMinus: () => setState(
+              () => _smartWindow = (_smartWindow - 5).clamp(0, 120),
+            ),
+            onPlus: () => setState(
+              () => _smartWindow = (_smartWindow + 5).clamp(0, 120),
+            ),
+          ),
+        _SettingRow(
+          icon: Icons.graphic_eq,
+          title: 'Gentle volume',
+          subtitle: 'Starts quiet and rises over ${_gentleSeconds}s',
+          trailing: Switch(
+            value: _gentleWake,
+            onChanged: (v) => setState(() => _gentleWake = v),
+          ),
+        ),
+        if (_gentleWake)
+          _StepperRow(
+            label: 'Ramp',
+            value: '${_gentleSeconds}s',
+            onMinus: () => setState(
+              () => _gentleSeconds = (_gentleSeconds - 15).clamp(15, 300),
+            ),
+            onPlus: () => setState(
+              () => _gentleSeconds = (_gentleSeconds + 15).clamp(15, 300),
+            ),
+          ),
+        _StepperRow(
+          label: 'Snooze length',
+          value: '$_snoozeMinutes min',
+          onMinus: () => setState(
+            () => _snoozeMinutes = (_snoozeMinutes - 1).clamp(1, 30),
+          ),
+          onPlus: () => setState(
+            () => _snoozeMinutes = (_snoozeMinutes + 1).clamp(1, 30),
+          ),
+        ),
+        _StepperRow(
+          label: 'Max snoozes',
+          value: '$_maxSnooze',
+          onMinus: () => setState(() => _maxSnooze = (_maxSnooze - 1).clamp(0, 10)),
+          onPlus: () => setState(() => _maxSnooze = (_maxSnooze + 1).clamp(0, 10)),
+        ),
+        _SettingRow(
+          icon: Icons.verified_user_outlined,
+          title: 'Wake-up check',
+          subtitle: 'Confirm you are awake after dismissing',
+          trailing: Switch(
+            value: _wakeUpCheck,
+            onChanged: (v) => setState(() => _wakeUpCheck = v),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionLabel(String text, ThemeData theme) => Text(
+        text.toUpperCase(),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: AppColors.onSurfaceVariant,
+          letterSpacing: 0.8,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+
+  String _repeatSummary() {
+    if (_repeatDays.isEmpty) return 'One time';
+    if (_repeatDays.length == 7) return 'Every day';
+    if (_repeatDays.length == 5 &&
+        !_repeatDays.contains(5) &&
+        !_repeatDays.contains(6)) {
+      return 'Weekdays';
     }
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final sorted = _repeatDays.toList()..sort();
+    return sorted.map((d) => names[d]).join(', ');
+  }
+
+  String _difficultyLabel(int d) {
+    const labels = ['', 'Gentle', 'Easy', 'Normal', 'Hard', 'Brutal'];
+    return labels[d.clamp(0, 5)];
+  }
+
+  String _soundName(String id) =>
+      _alarmSounds.firstWhere((s) => s['id'] == id, orElse: () => _alarmSounds.first)['name']!;
+
+  Future<void> _pickSound() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final sound in _alarmSounds)
+              ListTile(
+                leading: Icon(
+                  _selectedSound == sound['id']
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: _selectedSound == sound['id']
+                      ? AppColors.primary
+                      : AppColors.onSurfaceVariant,
+                ),
+                title: Text(sound['name']!),
+                onTap: () => Navigator.pop(context, sound['id']),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _selectedSound = picked);
+  }
+}
+
+class _DayChip extends StatelessWidget {
+  const _DayChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected ? AppColors.primary : AppColors.surfaceHigh,
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.outline,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.onPrimary : AppColors.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionPicker extends StatelessWidget {
+  const _MissionPicker({required this.selected, required this.onSelected});
+
+  final MissionType selected;
+  final ValueChanged<MissionType> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: MissionType.values.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) {
+          final mission = MissionType.values[i];
+          final isSelected = mission == selected;
+          return InkWell(
+            onTap: () => onSelected(mission),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: 84,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: isSelected ? AppColors.primaryContainer : AppColors.surface,
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : AppColors.outline,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(mission.icon, style: const TextStyle(fontSize: 24)),
+                  const SizedBox(height: 6),
+                  Text(
+                    mission.displayName,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? AppColors.onPrimaryContainer
+                          : AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      leading: Icon(icon, color: AppColors.onSurfaceVariant, size: 20),
+      title: Text(title, style: const TextStyle(fontSize: 15)),
+      subtitle: subtitle == null
+          ? null
+          : Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: 12.5,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+      trailing: trailing,
+      onTap: onTap,
+    );
+  }
+}
+
+class _StepperRow extends StatelessWidget {
+  const _StepperRow({
+    required this.label,
+    required this.value,
+    required this.onMinus,
+    required this.onPlus,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 44, top: 2, bottom: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+            ),
+          ),
+          _StepButton(icon: Icons.remove, onTap: onMinus),
+          SizedBox(
+            width: 76,
+            child: Text(
+              value,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          _StepButton(icon: Icons.add, onTap: onPlus),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepButton extends StatelessWidget {
+  const _StepButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: AppColors.surfaceHigh,
+        ),
+        child: Icon(icon, size: 16, color: AppColors.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+class _AdvancedToggle extends StatelessWidget {
+  const _AdvancedToggle({required this.expanded, required this.onTap});
+
+  final bool expanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Text(
+              'Advanced',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const Spacer(),
+            AnimatedRotation(
+              turns: expanded ? 0.5 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
