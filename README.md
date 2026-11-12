@@ -50,8 +50,6 @@
 &nbsp;
 
 <sub>
-<a href="docs/brand/README.md">🎨 how the art is made</a>
-&nbsp;·&nbsp;
 <a href="LICENSE">📜 license</a>
 &nbsp;·&nbsp;
 <a href="CONTRIBUTING.md">🤝 contributing</a>

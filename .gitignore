@@ -120,6 +120,12 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Art source (the rendered .gif/.svg/.png ARE committed - the README needs them)
+docs/brand/*.json
+docs/brand/font.py
+docs/brand/README.md
+design/
+
 # Tooling / editor metadata
 .serena/
 

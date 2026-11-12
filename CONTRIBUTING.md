@@ -18,8 +18,7 @@ flutter test
 - **One concern per change.** Don't mix a refactor with a feature.
 - **Surgical edits.** Don't reformat code you aren't changing.
 - **Match the surrounding style.**
-- **No generated files by hand.** `.g.dart` comes from `build_runner`; pixel art comes from the
-  recipes in `docs/brand/`.
+- **No generated files by hand.** `.g.dart` comes from `build_runner`.
 - **Remove what your change orphans.** If your edit makes an import or a file unused, delete it.
 - **Don't add dependencies** without saying why in the PR description.
 
