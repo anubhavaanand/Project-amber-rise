@@ -31,11 +31,9 @@ Built for three kinds of people, from one codebase:
 | **9-to-6 workers** | A fixed schedule they cannot move, and mornings that do not wreck them | Smart wake-up inside a window, backup alarm, no-oversleep guarantee |
 | **ADHD-friendly** | Low-friction starts, external structure, no decision fatigue in the morning | Persona presets, routine checklists, adaptive mission difficulty, streaks |
 
-The persona layer is a **preset**, not a fork. All three share one alarm engine, one tracking
-pipeline, one stats model — what changes is default times, which missions are enabled, copy tone,
-and how much friction the morning routine adds.
-
----
+The persona layer is a preset, not a fork. All three share one alarm engine, one tracking pipeline,
+one stats model — what changes is default times, which missions are enabled, copy tone, and how much
+friction the morning routine adds.
 
 ## Status
 
@@ -43,20 +41,17 @@ Rise is early. The foundation is real; most features are not built yet.
 
 | Layer | State |
 |---|---|
-| Build | ✅ Compiles, 16/16 tests pass, 0 analyzer errors |
+| Build | ✅ Compiles, 36/36 tests pass, 0 analyzer errors |
 | Native alarm pipeline | ✅ `AlarmManager.setAlarmClock`, foreground service, wake lock, boot rescheduling, full-screen intent |
-| Gentle volume ramp | ✅ Logarithmic gain ramp, ported from a reference implementation |
-| Sleep-phase detector | ✅ Algorithm implemented and unit-tested; **not yet connected to the alarm** |
-| Wake-up missions | 🟡 8 of ~17 exist, difficulty is flat and not per-mission |
-| Sleep tracking | 🟡 Basic accelerometer tracking; no hypnogram, no REM, no adaptive normalisation |
-| Stats & insights | 🟡 Partial; no sleep score, chronotype, debt model or regularity index |
+| Gentle volume ramp | ✅ Logarithmic gain ramp with a configurable duration |
+| Sleep-phase detector | ✅ Implemented and unit-tested; not yet wired to the alarm |
+| Night clock | ✅ Bedside clock with dim mode, live hypnogram, pause and stop-and-save |
+| Wake-up missions | 🟡 8 exist, difficulty is flat and not per-mission |
+| Sleep tracking | 🟡 Basic accelerometer tracking; no hypnogram from history, no REM, no adaptive normalisation |
+| Stats & insights | 🟡 Score, streak and averages; no chronotype, debt model or regularity index |
 | Wake-up check | ❌ Column exists, no behaviour |
 | Anti-oversleep protection | ❌ Not implemented |
-| Wearables, integrations, cloud | ❌ Deferred by design (see `docs/reverse-engineering/07-deferred.md`) |
-
-See `docs/reverse-engineering/05-gap-analysis.md` for the full 66-row feature matrix.
-
----
+| Wearables, integrations, cloud | ❌ Not planned |
 
 ## Getting started
 
@@ -70,13 +65,13 @@ See `docs/reverse-engineering/05-gap-analysis.md` for the full 66-row feature ma
 
 ```bash
 flutter pub get
-flutter pub run build_runner build --delete-conflicting-outputs   # required: Isar codegen
+flutter pub run build_runner build --delete-conflicting-outputs
 flutter analyze
 flutter test
 ```
 
-The `build_runner` step is **not optional**. The Isar `.g.dart` files are gitignored, so a fresh
-clone will not compile until you run it.
+The `build_runner` step regenerates the Isar code. Generated files are committed, so a fresh clone
+already builds — run it only when you change a schema.
 
 ### Run
 
@@ -96,23 +91,25 @@ These are the tests that matter, and they need a real device:
 
 An emulator cannot reproduce Doze or force-kill behaviour, so these only count on hardware.
 
----
-
 ## Project layout
 
 ```
 lib/
   main.dart                      App entry, theme, routing
+  theme/app_theme.dart           Colour, type, shape and motion tokens
   models/
     alarm.dart                   Isar alarm schema + MissionType enum
-    alarm_stats.dart             Derived statistics
+    alarm_stats.dart             Alarm outcome statistics
     sleep_record.dart            Sleep session record
+    persona_preset.dart          Persona presets and the friction dial
   services/
     alarm_service.dart           Dart side of the native alarm bridge
     notification_service.dart    Notification channels
-    sleep_phase_detector.dart    Deep/light sleep classification (ported algorithm)
+    preset_service.dart          Persona persistence
+    sleep_phase_detector.dart    Deep/light sleep classification
     sleep_tracking_service.dart  Accelerometer tracking session
-  screens/                       Home, edit, ring, tracking, stats, settings, sleep history
+  screens/                       Dashboard, alarm editor, night clock, sleep, you, settings
+  widgets/                       Hypnogram, wheel time picker, buttons, alarm card
   missions/                      The 8 wake-up missions
 
 android/app/src/main/kotlin/com/rise/app/
@@ -120,36 +117,34 @@ android/app/src/main/kotlin/com/rise/app/
   AlarmReceiver.kt               AlarmManager entry point + AlarmScheduler
   AlarmService.kt                Foreground service: sound, vibration, volume ramp
   AlarmRingActivity.kt           Full-screen alarm overlay
+  SleepTrackingService.kt        Background sleep tracking
+  SleepPhaseDetector.kt          Kotlin phase detector
   BootReceiver.kt                Reschedules after reboot
-
-docs/reverse-engineering/        Behavioural specs for the reference implementation
-test/                            Unit and widget tests
 ```
-
----
 
 ## Design notes
 
-- **Native-first alarm.** The alarm is scheduled with `setAlarmClock()`, the only `AlarmManager` API
-  that reliably wakes a device out of Doze. The foreground service and wake lock keep it ringing
-  after the app is killed.
-- **Volume is a gain curve, not a stream ramp.** The alarm stream is pinned to maximum immediately;
-  perceived loudness comes from a logarithmic `MediaPlayer` gain, so the alarm starts effectively
-  silent and rises evenly.
-- **Missions are gates, not decoration.** The alarm cannot be dismissed until the mission reports
-  success.
-- **Personas are data.** Niche behaviour lives in presets, never in branches of the core.
+**Native-first alarm.** The alarm is scheduled with `setAlarmClock()`, the only `AlarmManager` API
+that reliably wakes a device out of Doze. The foreground service and wake lock keep it ringing after
+the app is killed.
 
-## Documentation
+**Volume is a gain curve, not a stream ramp.** The alarm stream is pinned to maximum immediately;
+perceived loudness comes from a logarithmic `MediaPlayer` gain, so the alarm starts effectively
+silent and rises evenly.
 
-`docs/reverse-engineering/` documents how the reference implementation behaves, with exact
-constants and evidence trails. It is a specification, not source code — see the licensing note in
-that directory's `README.md`.
+**Missions are gates, not decoration.** The alarm cannot be dismissed until the mission reports
+success.
+
+**Personas are data.** Niche behaviour lives in presets, never in branches of the core.
+
+**The night screen is a bedside clock.** While tracking, the phone sits on the nightstand, so the
+screen answers "what time is it" before anything else, and can dim itself so it does not light up a
+dark room.
 
 ## License
 
 PolyForm Noncommercial 1.0.0 — free for noncommercial use, including by students and for personal
-projects. **Commercial use requires a separate license.** See [LICENSE](LICENSE).
+projects. Commercial use requires a separate license. See [LICENSE](LICENSE).
 
 ## Contributing
 

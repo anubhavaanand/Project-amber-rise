@@ -137,7 +137,7 @@ app.*.map.json
 !app-release.apk
 
 # Isar database files (generated at runtime)
-*.g.dart
+# Isar generated code is committed so a fresh clone builds without codegen.
 *.isar
 *.isar.lock
 
@@ -253,7 +253,6 @@ __pycache__/
 # 🔧 GENERATED CODE (REBUILD LOCALLY)
 # ============================================
 # Isar generated
-lib/**/*.g.dart
 # Keep in git for CI, uncomment if you prefer local generation only
 # *.g.dart
 
