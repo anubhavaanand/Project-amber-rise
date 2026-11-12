@@ -1,4 +1,4 @@
-// Basic widget test for Wake Me Up Pro app
+// Basic widget test for Rise
 //
 // Note: This is a placeholder test. Full widget testing requires
 // mocking the Isar database and other services.

@@ -3,7 +3,7 @@ import 'package:isar/isar.dart';
 import '../models/alarm.dart';
 
 class AlarmService {
-  static const MethodChannel _channel = MethodChannel('com.wakemeup.alarm');
+  static const MethodChannel _channel = MethodChannel('com.rise.app.alarm');
   static Isar? _isar;
   
   static Future<void> initialize(Isar isar) async {
@@ -23,12 +23,21 @@ class AlarmService {
         await _isar!.alarms.put(alarm);
       });
       
-      // Schedule via native code
+      // Schedule via native code.
+      // Repeat alarms store a fixed DateTime, so the actual trigger must be
+      // recomputed from the repeat days - otherwise a repeat alarm reschedules
+      // itself in the past and fires immediately (e.g. after a reboot).
+      final triggerTime = alarm.repeatDays.isEmpty
+          ? alarm.time
+          : calculateNextAlarmTime(alarm);
+
       await _channel.invokeMethod('scheduleAlarm', {
         'alarmId': alarm.id,
-        'triggerTime': alarm.time.millisecondsSinceEpoch,
+        'triggerTime': triggerTime.millisecondsSinceEpoch,
         'missionType': alarm.missionType.name,
         'difficulty': alarm.missionDifficulty,
+        'gentleEnabled': alarm.gentleWakeEnabled,
+        'gentleDurationMs': alarm.gentleWakeDurationSeconds * 1000,
       });
       
       print('✅ Alarm ${alarm.id} scheduled for ${alarm.timeString}');

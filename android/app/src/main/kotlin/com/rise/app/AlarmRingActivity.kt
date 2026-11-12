@@ -1,4 +1,4 @@
-package com.wakemeup.wake_me_up_pro
+package com.rise.app
 
 import android.os.Bundle
 import android.view.WindowManager

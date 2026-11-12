@@ -5,8 +5,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wake_me_up_pro/services/sleep_tracking_service.dart';
-import 'package:wake_me_up_pro/models/sleep_record.dart';
+import 'package:rise/services/sleep_tracking_service.dart';
+import 'package:rise/models/sleep_record.dart';
 
 void main() {
   group('SleepTrackingState', () {

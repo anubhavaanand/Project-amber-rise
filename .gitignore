@@ -128,7 +128,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/.gradle/
-/android/gradle.properties
 /android/captures/
 /android/.idea/
 /android/.cxx/

@@ -1,276 +1,140 @@
-# 🚀 Wake Me Up Pro - Unkillable Alarm Clock
+# Rise
 
-An **impossible-to-kill** alarm clock app with interactive wake-up missions. Built with Flutter and native Android/iOS integration to ensure alarms **ALWAYS** ring, even in Doze mode or when the app is terminated.
+**An alarm clock that does not accept "just five more minutes."**
 
-## 🎯 Key Features
+Rise is an Android alarm app built around one idea: the alarm is only useful if you are actually
+awake when it goes off. So it pairs an unkillable native alarm with wake-up missions, sleep-phase
+detection, and a morning check-up that catches you if you drifted back off.
 
-### Core Functionality
-- ✅ **Unkillable Alarms** - Uses `setAlarmClock()` on Android (survives Doze mode)
-- ✅ **Wake-Up Missions** - Interactive tasks to prove you're awake:
-  - 🔢 Math Problems (difficulty scaling)
-  - 📳 Shake Phone (accelerometer-based)
-  - 🏋️ Squats (ML Kit pose detection)
-  - 📷 Barcode Scanner
-  - And more...
-- ✅ **Wake-Up Verification** - Checks if you're still awake 5 minutes after dismissal
-- ✅ **Persistent Across Reboots** - Automatically reschedules alarms after device restart
-- ✅ **Foreground Service** - Alarm keeps ringing even when app is killed
-- ✅ **Volume Lock** - Prevents volume adjustment during alarm
-- ✅ **Full-Screen Override** - Shows alarm even on lock screen
+Built for three kinds of people, from one codebase:
 
-### Technical Highlights
-- **Database**: Isar (fastest NoSQL for Flutter)
-- **Native Integration**: Android AlarmManager + iOS Critical Alerts
-- **ML Kit**: Google ML Kit for pose detection
-- **Sensors**: Accelerometer, gyroscope, camera access
-- **Beautiful UI**: Material 3 dark theme with glassmorphism
+| Persona | What they need | What Rise gives them |
+|---|---|---|
+| **Students** | Sleep debt, late nights, early lectures, naps between classes | Nap timer, sleep-debt tracking, bedtime nudges, gentle wake |
+| **9-to-6 workers** | A fixed schedule they cannot move, and mornings that do not wreck them | Smart wake-up inside a window, backup alarm, no-oversleep guarantee |
+| **ADHD-friendly** | Low-friction starts, external structure, no decision fatigue in the morning | Persona presets, routine checklists, adaptive mission difficulty, streaks |
 
-## 📋 Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-1. **Flutter SDK** (3.16+)
-   ```bash
-   # Check Flutter installation
-   flutter doctor
-   ```
-
-2. **Android Studio** or **VS Code** with Flutter extensions
-
-3. **Java/Kotlin** (comes with Android Studio)
-
-4. **Git**
-
-## 🛠️ Installation & Setup
-
-### Step 1: Install Flutter
-
-If you don't have Flutter installed:
-
-```bash
-# Download Flutter
-cd ~/Downloads
-git clone https://github.com/flutter/flutter.git -b stable
-
-# Add to PATH (add this to your ~/.bashrc or ~/.zshrc)
-export PATH="$PATH:$HOME/Downloads/flutter/bin"
-
-# Verify installation
-flutter doctor
-
-# Install Android toolchain
-flutter doctor --android-licenses
-```
-
-### Step 2: Install Dependencies
-
-Navigate to the project directory and install dependencies:
-
-```bash
-cd path/to/wake_me_up_pro
-
-# Get Flutter packages
-flutter pub get
-
-# Generate Isar database code
-flutter pub run build_runner build
-```
-
-### Step 3: Android Setup
-
-The native Android code is already configured in `android/app/src/main/kotlin/`. No additional setup required!
-
-**Important Permissions** (already in AndroidManifest.xml):
-- `SCHEDULE_EXACT_ALARM` - Schedule exact alarms
-- `USE_EXACT_ALARM` - Auto-granted for alarm apps (Android 13+)
-- `WAKE_LOCK` - Keep device awake
-- `RECEIVE_BOOT_COMPLETED` - Reschedule after reboot
-- `FOREGROUND_SERVICE` - Run alarm service
-
-### Step 4: iOS Setup (Optional - for iOS testing)
-
-For iOS Critical Alerts (recommended but not required):
-
-1. Go to [Apple Developer Portal](https://developer.apple.com)
-2. Request the `com.apple.developer.usernotifications.critical-alerts` entitlement
-3. Add to `ios/Runner/Runner.entitlements`:
-
-```xml
-<key>com.apple.developer.usernotifications.critical-alerts</key>
-<true/>
-```
-
-## 🚀 Running the App
-
-### Android (Recommended for initial testing)
-
-```bash
-# List connected devices
-flutter devices
-
-# Run on connected Android device/emulator
-flutter run
-
-# Or build APK
-flutter build apk --release
-```
-
-### iOS
-
-```bash
-# Run on iOS simulator
-flutter run -d ios
-
-# Or build for iOS device
-flutter build ios
-```
-
-## 📱 Testing the Alarm
-
-### Phase 0 Validation (Critical Test!)
-
-To verify the alarm survives even in extreme conditions:
-
-1. **Set an alarm for 2 minutes from now**
-2. **Enable Airplane Mode** ✈️
-3. **Lock the device** 🔒
-4. **Wait for alarm to ring**
-
-✅ **Expected Result**: Alarm should ring at exact time, device should wake up, and full-screen alarm should appear.
-
-### Additional Tests
-
-1. **Doze Mode Test**:
-   - Set alarm for 5 minutes
-   - Put phone face-down on table
-   - Don't touch it
-   - Alarm should still ring
-
-2. **Kill App Test**:
-   - Set alarm
-   - Force-stop the app from Settings → Apps
-   - Alarm should still ring
-
-3. **Reboot Test**:
-   - Set alarm
-   - Reboot device
-   - Alarm should be restored and still ring
-
-## 🏗️ Project Structure
-
-```
-lib/
-├── main.dart                    # App entry point
-├── models/
-│   └── alarm.dart               # Isar database model
-├── services/
-│   ├── alarm_service.dart       # Alarm scheduling logic
-│   └── notification_service.dart # Notification handling
-├── screens/
-│   ├── home_screen.dart         # Main alarm list
-│   ├── alarm_edit_screen.dart   # Alarm configuration
-│   └── alarm_ring_screen.dart   # Alarm + mission screen
-└── missions/
-    ├── math_mission.dart        # Math problem mission
-    ├── shake_mission.dart       # Shake phone mission
-    └── ... (more missions)
-
-android/app/src/main/kotlin/com/wakemeup/wake_me_up_pro/
-├── MainActivity.kt              # MethodChannel bridge
-├── AlarmReceiver.kt             # Handles alarm trigger
-├── AlarmService.kt              # Foreground service
-├── AlarmScheduler.kt            # AlarmManager wrapper
-├── BootReceiver.kt              # Post-boot rescheduling
-└── AlarmRingActivity.kt         # Full-screen overlay
-```
-
-## 🎨 Customization
-
-### Adding New Missions
-
-1. Create a new file in `lib/missions/your_mission.dart`
-2. Extend `StatefulWidget` with required parameters:
-   ```dart
-   class YourMission extends StatefulWidget {
-     final int difficulty;
-     final VoidCallback onComplete;
-     // ... implement mission logic
-   }
-   ```
-
-3. Add to `MissionType` enum in `lib/models/alarm.dart`
-4. Update `AlarmRingScreen` to handle your mission
-
-### Changing Theme
-
-Edit `lib/main.dart` → `ThemeData`:
-
-```dart
-colorScheme: ColorScheme.dark(
-  primary: const Color(0xFFYOUR_COLOR),
-  // ... customize colors
-)
-```
-
-## 🐛 Troubleshooting
-
-### Alarm Not Ringing
-
-1. **Check permissions**: Settings → Apps → Wake Me Up Pro → Permissions
-2. **Disable battery optimization**: Settings → Battery → Battery Optimization → Wake Me Up Pro → Don't optimize
-3. **Allow auto-start**: Some manufacturers require this (Xiaomi, Huawei, etc.)
-
-### Build Errors
-
-```bash
-# Clean build
-flutter clean
-flutter pub get
-flutter pub run build_runner build --delete-conflicting-outputs
-
-# Rebuild
-flutter run
-```
-
-### Isar Database Errors
-
-```bash
-# Regenerate Isar schema
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-## 📚 Next Steps
-
-Now that you have the foundation, you can:
-
-1. ✅ **Test Phase 0** - Verify alarms survive Doze mode
-2. 🎨 **Customize UI** - Make it match your style
-3. 🧠 **Add More Missions** - Implement squat, barcode, etc.
-4. 📱 **iOS Support** - Configure Critical Alerts
-5. 🚀 **Publish** - Deploy to Play Store/App Store
-
-## 📖 Technical References
-
-- [Android AlarmManager](https://developer.android.com/reference/android/app/AlarmManager)
-- [Doze Mode Optimization](https://developer.android.com/training/monitoring-device-state/doze-standby)
-- [Flutter Local Notifications](https://pub.dev/packages/flutter_local_notifications)
-- [Isar Database](https://isar.dev/)
-- [Google ML Kit](https://developers.google.com/ml-kit)
-
-## 🤝 Contributing
-
-This is your personal project! Feel free to:
-- Add new missions
-- Improve UI/UX
-- Optimize performance
-- Fix bugs
-
-## 📄 License
-
-MIT License - Build something awesome! 🚀
+The persona layer is a **preset**, not a fork. All three share one alarm engine, one tracking
+pipeline, one stats model — what changes is default times, which missions are enabled, copy tone,
+and how much friction the morning routine adds.
 
 ---
 
-**Built with ❤️ by a 3rd year CSE student**
+## Status
 
-*"The only alarm clock that guarantees you won't oversleep"* ⏰
+Rise is early. The foundation is real; most features are not built yet.
+
+| Layer | State |
+|---|---|
+| Build | ✅ Compiles, 16/16 tests pass, 0 analyzer errors |
+| Native alarm pipeline | ✅ `AlarmManager.setAlarmClock`, foreground service, wake lock, boot rescheduling, full-screen intent |
+| Gentle volume ramp | ✅ Logarithmic gain ramp, ported from a reference implementation |
+| Sleep-phase detector | ✅ Algorithm implemented and unit-tested; **not yet connected to the alarm** |
+| Wake-up missions | 🟡 8 of ~17 exist, difficulty is flat and not per-mission |
+| Sleep tracking | 🟡 Basic accelerometer tracking; no hypnogram, no REM, no adaptive normalisation |
+| Stats & insights | 🟡 Partial; no sleep score, chronotype, debt model or regularity index |
+| Wake-up check | ❌ Column exists, no behaviour |
+| Anti-oversleep protection | ❌ Not implemented |
+| Wearables, integrations, cloud | ❌ Deferred by design (see `docs/reverse-engineering/07-deferred.md`) |
+
+See `docs/reverse-engineering/05-gap-analysis.md` for the full 66-row feature matrix.
+
+---
+
+## Getting started
+
+### Prerequisites
+
+- Flutter 3.50+ (stable)
+- JDK 21
+- Android SDK Platform 36 + Build-Tools 36
+
+### Setup
+
+```bash
+flutter pub get
+flutter pub run build_runner build --delete-conflicting-outputs   # required: Isar codegen
+flutter analyze
+flutter test
+```
+
+The `build_runner` step is **not optional**. The Isar `.g.dart` files are gitignored, so a fresh
+clone will not compile until you run it.
+
+### Run
+
+```bash
+flutter run                      # debug on a connected device
+flutter build apk --debug        # verify a full Android build
+```
+
+### Verify the alarm actually works
+
+These are the tests that matter, and they need a real device:
+
+1. **Doze** — set an alarm 2 minutes out, enable airplane mode, lock the phone, wait.
+2. **Force-kill** — set an alarm, force-stop the app from Settings, confirm it still rings.
+3. **Reboot** — set an alarm, reboot, confirm it is rescheduled and still rings.
+4. **Low battery** — repeat at under 15% with battery saver on.
+
+An emulator cannot reproduce Doze or force-kill behaviour, so these only count on hardware.
+
+---
+
+## Project layout
+
+```
+lib/
+  main.dart                      App entry, theme, routing
+  models/
+    alarm.dart                   Isar alarm schema + MissionType enum
+    alarm_stats.dart             Derived statistics
+    sleep_record.dart            Sleep session record
+  services/
+    alarm_service.dart           Dart side of the native alarm bridge
+    notification_service.dart    Notification channels
+    sleep_phase_detector.dart    Deep/light sleep classification (ported algorithm)
+    sleep_tracking_service.dart  Accelerometer tracking session
+  screens/                       Home, edit, ring, tracking, stats, settings, sleep history
+  missions/                      The 8 wake-up missions
+
+android/app/src/main/kotlin/com/rise/app/
+  MainActivity.kt                MethodChannel bridge
+  AlarmReceiver.kt               AlarmManager entry point + AlarmScheduler
+  AlarmService.kt                Foreground service: sound, vibration, volume ramp
+  AlarmRingActivity.kt           Full-screen alarm overlay
+  BootReceiver.kt                Reschedules after reboot
+
+docs/reverse-engineering/        Behavioural specs for the reference implementation
+test/                            Unit and widget tests
+```
+
+---
+
+## Design notes
+
+- **Native-first alarm.** The alarm is scheduled with `setAlarmClock()`, the only `AlarmManager` API
+  that reliably wakes a device out of Doze. The foreground service and wake lock keep it ringing
+  after the app is killed.
+- **Volume is a gain curve, not a stream ramp.** The alarm stream is pinned to maximum immediately;
+  perceived loudness comes from a logarithmic `MediaPlayer` gain, so the alarm starts effectively
+  silent and rises evenly.
+- **Missions are gates, not decoration.** The alarm cannot be dismissed until the mission reports
+  success.
+- **Personas are data.** Niche behaviour lives in presets, never in branches of the core.
+
+## Documentation
+
+`docs/reverse-engineering/` documents how the reference implementation behaves, with exact
+constants and evidence trails. It is a specification, not source code — see the licensing note in
+that directory's `README.md`.
+
+## License
+
+PolyForm Noncommercial 1.0.0 — free for noncommercial use, including by students and for personal
+projects. **Commercial use requires a separate license.** See [LICENSE](LICENSE).
+
+## Contributing
+
+Bug reports and pull requests are welcome. Keep changes surgical: one concern per change, and run
+`flutter analyze` and `flutter test` before opening a PR.

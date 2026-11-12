@@ -1,4 +1,4 @@
-package com.wakemeup.wake_me_up_pro
+package com.rise.app
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -20,6 +20,8 @@ class AlarmReceiver : BroadcastReceiver() {
         const val EXTRA_ALARM_TIME = "alarm_time"
         const val EXTRA_MISSION_TYPE = "mission_type"
         const val EXTRA_DIFFICULTY = "difficulty"
+        const val EXTRA_GENTLE_ENABLED = "gentle_enabled"
+        const val EXTRA_GENTLE_DURATION_MS = "gentle_duration_ms"
     }
     
     override fun onReceive(context: Context, intent: Intent) {
@@ -29,6 +31,8 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarmTime = intent.getLongExtra(EXTRA_ALARM_TIME, 0)
         val missionType = intent.getStringExtra(EXTRA_MISSION_TYPE) ?: "math"
         val difficulty = intent.getIntExtra(EXTRA_DIFFICULTY, 3)
+        val gentleEnabled = intent.getBooleanExtra(EXTRA_GENTLE_ENABLED, false)
+        val gentleDurationMs = intent.getIntExtra(EXTRA_GENTLE_DURATION_MS, 0)
         
         if (alarmId == -1) {
             Log.e(TAG, "Invalid alarm ID received")
@@ -43,6 +47,8 @@ class AlarmReceiver : BroadcastReceiver() {
             putExtra(EXTRA_ALARM_TIME, alarmTime)
             putExtra(EXTRA_MISSION_TYPE, missionType)
             putExtra(EXTRA_DIFFICULTY, difficulty)
+            putExtra(EXTRA_GENTLE_ENABLED, gentleEnabled)
+            putExtra(EXTRA_GENTLE_DURATION_MS, gentleDurationMs)
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -79,7 +85,9 @@ object AlarmScheduler {
         alarmId: Int,
         triggerTime: Long,
         missionType: String,
-        difficulty: Int
+        difficulty: Int,
+        gentleEnabled: Boolean = false,
+        gentleDurationMs: Int = 0
     ) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         
@@ -96,6 +104,8 @@ object AlarmScheduler {
             putExtra(AlarmReceiver.EXTRA_ALARM_TIME, triggerTime)
             putExtra(AlarmReceiver.EXTRA_MISSION_TYPE, missionType)
             putExtra(AlarmReceiver.EXTRA_DIFFICULTY, difficulty)
+            putExtra(AlarmReceiver.EXTRA_GENTLE_ENABLED, gentleEnabled)
+            putExtra(AlarmReceiver.EXTRA_GENTLE_DURATION_MS, gentleDurationMs)
         }
         
         val pendingIntent = PendingIntent.getBroadcast(

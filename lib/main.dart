@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:isar/isar.dart';
@@ -17,7 +18,7 @@ import 'screens/alarm_ring_screen.dart';
 import 'screens/sleep_tracking_screen.dart';
 
 /// MethodChannel for receiving intents from native side
-const MethodChannel _intentChannel = MethodChannel('com.wakemeup.intent');
+const MethodChannel _intentChannel = MethodChannel('com.rise.app.intent');
 
 /// Global navigator key for routing from outside widget tree
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -154,7 +155,7 @@ class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Wake Me Up Pro',
+      title: 'Rise',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

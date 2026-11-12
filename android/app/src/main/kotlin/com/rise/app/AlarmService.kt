@@ -1,4 +1,4 @@
-package com.wakemeup.wake_me_up_pro
+package com.rise.app
 
 import android.app.*
 import android.content.Context
@@ -27,10 +27,6 @@ class AlarmService : Service() {
         private const val CHANNEL_ID = "alarm_service_channel"
         private const val WAKE_LOCK_TAG = "WakeMeUp::AlarmWakeLock"
         
-        // Gradual volume increase settings
-        private const val VOLUME_RAMP_DURATION_MS = 30000L // 30 seconds
-        private const val VOLUME_RAMP_STEPS = 10
-        
         var isRinging = false
             private set
         
@@ -43,8 +39,7 @@ class AlarmService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var audioManager: AudioManager? = null
     private var originalVolume: Int = 0
-    private var volumeHandler: android.os.Handler? = null
-    private var volumeRunnable: Runnable? = null
+    private var rampThread: android.os.HandlerThread? = null
     
     override fun onCreate() {
         super.onCreate()
@@ -66,22 +61,26 @@ class AlarmService : Service() {
         val alarmId = intent?.getIntExtra(AlarmReceiver.EXTRA_ALARM_ID, -1) ?: -1
         currentAlarmId = alarmId
         
+        val gentleEnabled = intent?.getBooleanExtra(AlarmReceiver.EXTRA_GENTLE_ENABLED, false) ?: false
+        val gentleDurationMs = intent?.getIntExtra(AlarmReceiver.EXTRA_GENTLE_DURATION_MS, 0) ?: 0
+        
         // Start as foreground service (prevents killing)
         startForeground(NOTIFICATION_ID, createNotification())
         
         // Acquire wake lock (keeps CPU running)
         acquireWakeLock()
         
-        // Set volume to maximum
-        setMaxVolume()
+        isRinging = true
         
-        // Start alarm sound
+        // Start alarm sound before the ramp, which drives the MediaPlayer gain
         startAlarmSound()
+        
+        // Set volume to maximum, then apply the gentle gain ramp on top
+        setMaxVolume()
+        startGradualVolumeIncrease(gentleEnabled, gentleDurationMs)
         
         // Start vibration
         startVibration()
-        
-        isRinging = true
         
         // START_STICKY ensures service is recreated if killed
         return START_STICKY
@@ -101,10 +100,9 @@ class AlarmService : Service() {
     fun stopAlarm() {
         isRinging = false
         
-        // Stop volume ramping
-        volumeRunnable?.let { volumeHandler?.removeCallbacks(it) }
-        volumeHandler = null
-        volumeRunnable = null
+        // Stop the gentle volume ramp thread
+        rampThread?.quitSafely()
+        rampThread = null
         
         // Stop media player
         mediaPlayer?.apply {
@@ -146,46 +144,65 @@ class AlarmService : Service() {
     }
     
     /**
-     * Set alarm volume to maximum with gradual increase
+     * Set the alarm stream to maximum volume.
+     *
+     * The perceived loudness is then controlled purely by the MediaPlayer gain,
+     * which is what the gentle ramp below modulates.
      */
     private fun setMaxVolume() {
         audioManager?.let { am ->
             originalVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
             val maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            
-            // Start at 30% volume
-            val startVolume = (maxVolume * 0.3).toInt().coerceAtLeast(1)
-            am.setStreamVolume(AudioManager.STREAM_ALARM, startVolume, 0)
-            
-            // Gradually increase to max over 30 seconds
-            startGradualVolumeIncrease(startVolume, maxVolume)
-            
-            Log.d(TAG, "Volume starting at: $startVolume, will ramp to: $maxVolume")
+            am.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+            Log.d(TAG, "Alarm stream volume set to max: $maxVolume")
         }
     }
     
     /**
-     * Gradually increase volume from start to max
+     * Gentle volume ramp.
+     *
+     * Ported from Sleep as Android's `GentleAlarmRunnable`:
+     * the system stream stays at maximum and the *MediaPlayer gain* is ramped
+     * logarithmically, so the alarm starts effectively silent and rises
+     * perceptually evenly.
+     *
+     *   gain(v) = 1 - ln(100 - v) / ln(100)   for v < 100, else 1.0
+     *   tick    = durationMs / 100 ms        (one volume unit per tick)
+     *
+     * Sample gains: v=0 -> 0.000, v=10 -> 0.023, v=50 -> 0.151,
+     * v=75 -> 0.301, v=90 -> 0.500, v=99 -> 1.000.
      */
-    private fun startGradualVolumeIncrease(startVolume: Int, maxVolume: Int) {
-        volumeHandler = android.os.Handler(android.os.Looper.getMainLooper())
-        val stepDelay = VOLUME_RAMP_DURATION_MS / VOLUME_RAMP_STEPS
-        val volumeStep = ((maxVolume - startVolume).toFloat() / VOLUME_RAMP_STEPS).coerceAtLeast(1f)
-        var currentStep = 0
+    private fun startGradualVolumeIncrease(gentleEnabled: Boolean, durationMs: Int) {
+        val player = mediaPlayer ?: return
         
-        volumeRunnable = object : Runnable {
-            override fun run() {
-                if (currentStep < VOLUME_RAMP_STEPS && isRinging) {
-                    currentStep++
-                    val newVolume = (startVolume + (volumeStep * currentStep)).toInt().coerceAtMost(maxVolume)
-                    audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, newVolume, 0)
-                    Log.d(TAG, "Volume increased to: $newVolume (step $currentStep/$VOLUME_RAMP_STEPS)")
-                    volumeHandler?.postDelayed(this, stepDelay)
-                }
-            }
+        if (!gentleEnabled || durationMs <= 0) {
+            player.setVolume(1f, 1f)
+            return
         }
         
-        volumeHandler?.postDelayed(volumeRunnable!!, stepDelay)
+        val step = (durationMs / 100).coerceAtLeast(1).toLong()
+        val thread = android.os.HandlerThread("AlarmVolumeRamp").apply { start() }
+        rampThread = thread
+        val handler = android.os.Handler(thread.looper)
+        
+        var volume = 0
+        handler.post(object : Runnable {
+            override fun run() {
+                if (!isRinging) return
+                
+                val gain = if (volume < 100) {
+                    (1.0 - Math.log(100.0 - volume) / Math.log(100.0)).toFloat().coerceIn(0f, 1f)
+                } else {
+                    1f
+                }
+                mediaPlayer?.setVolume(gain, gain)
+                
+                volume++
+                handler.postDelayed(this, step)
+            }
+        })
+        
+        Log.d(TAG, "Gentle volume ramp started: duration=${durationMs}ms, tick=${step}ms")
     }
     
     /**

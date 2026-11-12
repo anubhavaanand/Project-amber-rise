@@ -1,4 +1,4 @@
-package com.wakemeup.wake_me_up_pro
+package com.rise.app
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -13,7 +13,7 @@ class BootReceiver : BroadcastReceiver() {
     
     companion object {
         private const val TAG = "BootReceiver"
-        const val ACTION_RESCHEDULE = "com.wakemeup.wake_me_up_pro.RESCHEDULE_ALARMS"
+        const val ACTION_RESCHEDULE = "com.rise.app.RESCHEDULE_ALARMS"
     }
     
     override fun onReceive(context: Context, intent: Intent) {

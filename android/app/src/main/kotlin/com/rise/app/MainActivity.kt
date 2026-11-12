@@ -1,4 +1,4 @@
-package com.wakemeup.wake_me_up_pro
+package com.rise.app
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,8 +7,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.wakemeup.alarm"
-    private val INTENT_CHANNEL = "com.wakemeup.intent"
+    private val CHANNEL = "com.rise.app.alarm"
+    private val INTENT_CHANNEL = "com.rise.app.intent"
     
     // Store initial alarm data if app is launched from alarm
     private var pendingAlarmData: Map<String, Any?>? = null
@@ -24,6 +24,8 @@ class MainActivity : FlutterActivity() {
                     val triggerTime = call.argument<Long>("triggerTime")
                     val missionType = call.argument<String>("missionType")
                     val difficulty = call.argument<Int>("difficulty")
+                    val gentleEnabled = call.argument<Boolean>("gentleEnabled") ?: false
+                    val gentleDurationMs = call.argument<Int>("gentleDurationMs") ?: 0
                     
                     if (alarmId != null && triggerTime != null && missionType != null && difficulty != null) {
                         AlarmScheduler.scheduleAlarm(
@@ -31,7 +33,9 @@ class MainActivity : FlutterActivity() {
                             alarmId = alarmId,
                             triggerTime = triggerTime,
                             missionType = missionType,
-                            difficulty = difficulty
+                            difficulty = difficulty,
+                            gentleEnabled = gentleEnabled,
+                            gentleDurationMs = gentleDurationMs
                         )
                         result.success(true)
                     } else {
