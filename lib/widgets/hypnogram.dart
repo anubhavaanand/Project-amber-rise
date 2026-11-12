@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// One 10-minute sleep phase.
-enum SleepPhase { awake, rem, light, deep }
+enum HypnoPhase { awake, rem, light, deep }
 
 /// A hypnogram: sleep depth over time, as a staircase.
 ///
@@ -30,12 +30,12 @@ class Hypnogram extends StatelessWidget {
   static const double remThreshold = 0.3;
 
   /// Classifies one movement sample. Negative or absent values are "no data".
-  static SleepPhase? classify(double value) {
+  static HypnoPhase? classify(double value) {
     if (value.isNaN || value < 0) return null;
-    if (value > awakeThreshold) return SleepPhase.awake;
-    if (value > lightThreshold) return SleepPhase.light;
-    if (value > remThreshold) return SleepPhase.rem;
-    return SleepPhase.deep;
+    if (value > awakeThreshold) return HypnoPhase.awake;
+    if (value > lightThreshold) return HypnoPhase.light;
+    if (value > remThreshold) return HypnoPhase.rem;
+    return HypnoPhase.deep;
   }
 
   @override
@@ -56,21 +56,21 @@ class _HypnogramPainter extends CustomPainter {
 
   /// Top to bottom: awake, REM, light, deep.
   static const _order = [
-    SleepPhase.awake,
-    SleepPhase.rem,
-    SleepPhase.light,
-    SleepPhase.deep,
+    HypnoPhase.awake,
+    HypnoPhase.rem,
+    HypnoPhase.light,
+    HypnoPhase.deep,
   ];
 
-  static Color _color(SleepPhase phase) {
+  static Color _color(HypnoPhase phase) {
     switch (phase) {
-      case SleepPhase.awake:
+      case HypnoPhase.awake:
         return AppColors.phaseAwake;
-      case SleepPhase.rem:
+      case HypnoPhase.rem:
         return AppColors.phaseRem;
-      case SleepPhase.light:
+      case HypnoPhase.light:
         return AppColors.phaseLight;
-      case SleepPhase.deep:
+      case HypnoPhase.deep:
         return AppColors.phaseDeep;
     }
   }
@@ -89,7 +89,7 @@ class _HypnogramPainter extends CustomPainter {
     final usable = size.height - padTop - padBottom;
     final rowHeight = usable / _order.length;
 
-    double yFor(SleepPhase phase) {
+    double yFor(HypnoPhase phase) {
       final index = _order.indexOf(phase);
       return padTop + rowHeight * index + rowHeight / 2;
     }

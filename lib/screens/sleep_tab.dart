@@ -5,7 +5,7 @@ import '../models/sleep_record.dart';
 import '../services/sleep_tracking_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/hypnogram.dart';
-import 'sleep_tracking_screen.dart';
+import 'night_clock_screen.dart';
 
 /// The Sleep tab.
 ///
@@ -47,7 +47,8 @@ class _SleepTabState extends State<SleepTab> {
   Future<void> _openTracking() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => SleepTrackingScreen(isar: widget.isar, autoStart: false),
+        builder: (_) => const NightClockScreen(),
+        fullscreenDialog: true,
       ),
     );
     await _load();
