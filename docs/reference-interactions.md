@@ -139,3 +139,67 @@ and it is an idea, not expression.
 * The sleep-tracking screen's sensor affordances (`SensorPreviewActivity`, `sensor_graph`).
 * The onboarding/first-use flow (`FirstUsePreviewActivity`, `QuickStartPreviewActivity`).
 * Whether the pager is used for the tab bar or only for the onboarding carousel.
+---
+
+## 8. Sleep tracking screen (`activity_sleep_track.xml`)
+
+The most interesting screen in the app, and the reason is structural rather than visual:
+**while tracking, the phone sits on the nightstand, so the screen becomes a bedside clock.**
+
+Observed hierarchy:
+
+```
+FrameLayout
+├── CoordinatorLayout #sleep_track_parent
+│   ├── toolbar_parent
+│   │   ├── Toolbar
+│   │   └── #squigllyProgress        h=16dp  (a wavy progress line under the toolbar)
+│   ├── #clock_parent
+│   │   └── DigitalClock
+│   │       └── #timeDisplay                ← the hero
+│   ├── #recording_parent
+│   │   ├── #recording_img
+│   │   ├── #recording_text
+│   │   └── #recording_bar                  LinearProgressIndicator
+│   ├── #step_alarm  (#step_alarm_icon, #step_alarm_text, #good_night)
+│   ├── #graph_layout
+│   │   ├── GraphView #graph                the live night graph
+│   │   ├── LottieAnimationView #anim2      animated overlay
+│   │   └── ScrollView of ~25 #step_* rows  contextual guidance
+│   ├── #pause_indicator  (#pause_indicator_text, #pause_indicator_add_time)
+│   ├── #battery_save_indicator
+│   ├── #hr_indicator     (#hr_img, #hr_text, #hr_text2)
+│   └── #bottom_sheet     (RecyclerView #drawer_recycler + #stop_and_save_parent)
+├── #adsStub
+├── LottieAnimationView #anim               full-screen animation
+├── DigitalClock #dimClock  (#timeDisplayDim)  ← dimmed night clock
+└── #hint
+```
+
+### 8.1 The ideas worth taking
+
+| Idea | Why it works |
+|---|---|
+| **The clock is the hero** | At 3am you glance, you do not interact. The screen answers "what time is it" before anything else. |
+| **A separate `#dimClock`** | A low-brightness clock face for the night, distinct from the interactive UI, so the screen does not blind you in a dark room. |
+| **Live graph under the clock** | The night draws itself while you sleep, so you get feedback without opening anything. |
+| **25 contextual `step_*` rows** | Each names one thing that is wrong and how to fix it: `step_recording_permission`, `step_battery_optimized`, `step_charger`, `step_sonar`, `step_airplane`, `step_smartwatch`, `step_external_not_mounted`, and so on. Guidance is contextual and ordered, not a wall of settings. |
+| **Pause with `+X min`** | Pausing is a first-class action, not a stop. You can extend the night. |
+| **Bottom sheet holds stop-and-save** | The destructive action is deliberately placed away from the clock, so it cannot be hit by accident in the dark. |
+| **`#squigllyProgress`** | A 16dp wavy progress line under the toolbar: progress without a chart. |
+
+### 8.2 What we should build
+
+An equivalent night screen, originally drawn:
+
+1. Full-screen clock as the hero, with the night's elapsed time.
+2. A dim mode: tap to drop to a low-brightness clock face.
+3. A live hypnogram of the night so far, drawn with the same painter as the Sleep tab.
+4. A contextual checklist that names what is missing, ordered by severity.
+5. Pause with `+15 min`, and stop-and-save in a bottom sheet.
+
+### 8.3 What we must not take
+
+The droid character animations, the Lottie files, the squiggly line artwork, and
+the exact screen composition. The clock-and-graph *structure* and the contextual
+checklist *behaviour* are the reusable parts.
