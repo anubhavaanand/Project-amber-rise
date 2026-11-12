@@ -60,6 +60,39 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 
+                "startSleepTracking" -> {
+                    val alarmId = call.argument<Int>("alarmId")
+                    val triggerTime = call.argument<Long>("triggerTime")
+                    val earliestFireTime = call.argument<Long>("earliestFireTime")
+                    val missionType = call.argument<String>("missionType")
+                    val difficulty = call.argument<Int>("difficulty")
+                    
+                    if (alarmId != null && triggerTime != null &&
+                        earliestFireTime != null && missionType != null && difficulty != null
+                    ) {
+                        SleepTrackingService.start(
+                            context = applicationContext,
+                            alarmId = alarmId,
+                            triggerTime = triggerTime,
+                            earliestFireTime = earliestFireTime,
+                            missionType = missionType,
+                            difficulty = difficulty
+                        )
+                        result.success(true)
+                    } else {
+                        result.error("INVALID_ARGS", "Missing sleep tracking arguments", null)
+                    }
+                }
+                
+                "stopSleepTracking" -> {
+                    SleepTrackingService.stop(applicationContext)
+                    result.success(true)
+                }
+                
+                "isSleepTracking" -> {
+                    result.success(SleepTrackingService.isRunning)
+                }
+                
                 else -> {
                     result.notImplemented()
                 }

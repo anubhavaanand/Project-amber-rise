@@ -98,6 +98,73 @@ class AlarmService {
     }
   }
   
+  /// Start the native sleep-tracking service for [alarm].
+  ///
+  /// The service samples the accelerometer all night and fires the alarm early
+  /// once it sees light sleep inside [earliestFireTime].
+  static Future<void> startSleepTracking(
+    Alarm alarm, {
+    required DateTime earliestFireTime,
+  }) async {
+    final triggerTime = alarm.repeatDays.isEmpty
+        ? alarm.time
+        : calculateNextAlarmTime(alarm);
+
+    await _channel.invokeMethod('startSleepTracking', {
+      'alarmId': alarm.id,
+      'triggerTime': triggerTime.millisecondsSinceEpoch,
+      'earliestFireTime': earliestFireTime.millisecondsSinceEpoch,
+      'missionType': alarm.missionType.name,
+      'difficulty': alarm.missionDifficulty,
+    });
+  }
+
+  /// Stop the native sleep-tracking service.
+  static Future<void> stopSleepTracking() async {
+    try {
+      await _channel.invokeMethod('stopSleepTracking');
+    } catch (e) {
+      print('❌ Error stopping sleep tracking: $e');
+    }
+  }
+
+  /// Whether the native tracking service is currently running.
+  static Future<bool> isSleepTracking() async {
+    try {
+      return await _channel.invokeMethod<bool>('isSleepTracking') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// The earliest moment the smart alarm may fire.
+  ///
+  /// Mirrors `Alarm.getEarliesWakeTime`:
+  ///   min( max(alarmTime - window, sleepStart + idealSleep), alarmTime )
+  ///
+  /// [sleepStart] is when tracking began; [idealSleepMinutes] is the user's
+  /// target sleep length. When either is unknown the window start is used.
+  static DateTime earliestSmartFireTime(
+    Alarm alarm, {
+    DateTime? sleepStart,
+    int idealSleepMinutes = 60,
+  }) {
+    final trigger =
+        alarm.repeatDays.isEmpty ? alarm.time : calculateNextAlarmTime(alarm);
+
+    if (!alarm.smartAlarmEnabled || alarm.smartAlarmWindowMinutes <= 0) {
+      return trigger;
+    }
+
+    final windowStart =
+        trigger.subtract(Duration(minutes: alarm.smartAlarmWindowMinutes));
+    if (sleepStart == null) return windowStart;
+
+    final afterIdeal = sleepStart.add(Duration(minutes: idealSleepMinutes));
+    final lowerBound = afterIdeal.isAfter(windowStart) ? afterIdeal : windowStart;
+    return lowerBound.isBefore(trigger) ? lowerBound : trigger;
+  }
+
   /// Stop currently ringing alarm
   static Future<void> stopAlarm() async {
     try {
