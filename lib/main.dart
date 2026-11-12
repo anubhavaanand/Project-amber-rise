@@ -15,6 +15,8 @@ import 'services/sleep_tracking_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_shell.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/alarm_edit_screen.dart';
 import 'screens/alarm_ring_screen.dart';
 import 'screens/sleep_tracking_screen.dart';
 
@@ -153,6 +155,17 @@ class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObse
     }
   }
 
+  /// A sensible default for a new alarm: the next occurrence of 07:00.
+  static DateTime _newAlarmTime() {
+    final now = DateTime.now();
+    final candidate = DateTime(now.year, now.month, now.day, 7);
+    return candidate.isAfter(now)
+        ? candidate
+        : candidate.add(const Duration(days: 1));
+  }
+
+  static Alarm _newAlarm() => Alarm.create(time: _newAlarmTime());
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -188,6 +201,19 @@ class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObse
             return MaterialPageRoute(
               settings: settings,
               builder: (context) => AlarmRingScreen(initialData: args),
+            );
+          case '/alarm-new':
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (context) => AlarmEditScreen(
+                isar: widget.isar,
+                alarm: _newAlarm(),
+              ),
+            );
+          case '/settings':
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (context) => SettingsScreen(isar: widget.isar),
             );
           default:
             return MaterialPageRoute(
