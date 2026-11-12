@@ -69,7 +69,7 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
   
-  runApp(WakeMeUpProApp(isar: isar));
+  runApp(RiseApp(isar: isar));
 }
 
 Future<void> _requestPermissions() async {
@@ -85,16 +85,16 @@ Future<void> _requestPermissions() async {
   await Permission.camera.request();
 }
 
-class WakeMeUpProApp extends StatefulWidget {
+class RiseApp extends StatefulWidget {
   final Isar isar;
   
-  const WakeMeUpProApp({Key? key, required this.isar}) : super(key: key);
+  const RiseApp({Key? key, required this.isar}) : super(key: key);
 
   @override
-  State<WakeMeUpProApp> createState() => _WakeMeUpProAppState();
+  State<RiseApp> createState() => _RiseAppState();
 }
 
-class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObserver {
+class _RiseAppState extends State<RiseApp> with WidgetsBindingObserver {
   Map<String, dynamic>? _pendingAlarmData;
   
   @override

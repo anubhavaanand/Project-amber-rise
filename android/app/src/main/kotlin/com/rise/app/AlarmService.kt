@@ -25,7 +25,7 @@ class AlarmService : Service() {
         private const val TAG = "AlarmService"
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "alarm_service_channel"
-        private const val WAKE_LOCK_TAG = "WakeMeUp::AlarmWakeLock"
+        private const val WAKE_LOCK_TAG = "Rise::AlarmWakeLock"
         
         var isRinging = false
             private set
