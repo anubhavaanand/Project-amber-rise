@@ -24,6 +24,7 @@ class _SleepTabState extends State<SleepTab> {
   SleepRecord? _lastNight;
   bool _tracking = false;
   bool _loading = true;
+  int _recordCount = 0;
 
   @override
   void initState() {
@@ -36,9 +37,11 @@ class _SleepTabState extends State<SleepTab> {
         .where()
         .sortByBedTimeDesc()
         .findFirst();
+    final count = await widget.isar.sleepRecords.count();
     if (!mounted) return;
     setState(() {
       _lastNight = record;
+      _recordCount = count;
       _tracking = SleepTrackingService.instance?.isTracking ?? false;
       _loading = false;
     });
@@ -68,6 +71,37 @@ class _SleepTabState extends State<SleepTab> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
           _TonightCard(tracking: _tracking, onOpen: _openTracking),
+          const _SectionHeader('Tools'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.history, size: 20),
+                  title: const Text('Sleep history', style: TextStyle(fontSize: 14.5)),
+                  subtitle: Text(
+                    '${_recordCount} night${_recordCount == 1 ? '' : 's'} recorded',
+                    style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: () async {
+                    await Navigator.of(context).pushNamed('/sleep-history');
+                    await _load();
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.bedtime_outlined, size: 20),
+                  title: const Text('Nap timer', style: TextStyle(fontSize: 14.5)),
+                  subtitle: Text(
+                    'A short sleep with its own alarm',
+                    style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: () => Navigator.of(context).pushNamed('/nap'),
+                ),
+              ],
+            ),
+          ),
           const _SectionHeader('Last night'),
           if (record == null)
             const _EmptyCard(

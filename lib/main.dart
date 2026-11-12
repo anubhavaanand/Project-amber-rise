@@ -16,6 +16,8 @@ import 'theme/app_theme.dart';
 import 'screens/home_shell.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/nap_timer_screen.dart';
+import 'screens/sleep_history_screen.dart';
 import 'screens/alarm_edit_screen.dart';
 import 'screens/alarm_ring_screen.dart';
 import 'screens/sleep_tracking_screen.dart';
@@ -214,6 +216,16 @@ class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObse
             return MaterialPageRoute(
               settings: settings,
               builder: (context) => SettingsScreen(isar: widget.isar),
+            );
+          case '/nap':
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (context) => NapTimerScreen(isar: widget.isar),
+            );
+          case '/sleep-history':
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (context) => SleepHistoryScreen(isar: widget.isar),
             );
           default:
             return MaterialPageRoute(
