@@ -12,8 +12,11 @@ import 'models/sleep_record.dart';
 import 'models/alarm_stats.dart';
 import 'services/alarm_service.dart';
 import 'services/notification_service.dart';
+import 'services/preset_service.dart';
 import 'services/sleep_tracking_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/home_shell.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/alarm_ring_screen.dart';
 import 'screens/sleep_tracking_screen.dart';
 
@@ -208,7 +211,13 @@ class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObse
         switch (settings.name) {
           case '/':
             return MaterialPageRoute(
-              builder: (context) => HomeScreen(isar: widget.isar),
+              builder: (context) => _RootGate(
+                isar: widget.isar,
+                onOnboardingDone: () {
+                  navigatorKey.currentState
+                      ?.pushReplacementNamed('/');
+                },
+              ),
             );
           case '/alarm-ring':
             final args = settings.arguments as Map<String, dynamic>?;
@@ -218,9 +227,57 @@ class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObse
             );
           default:
             return MaterialPageRoute(
-              builder: (context) => HomeScreen(isar: widget.isar),
+              builder: (context) => _RootGate(
+                isar: widget.isar,
+                onOnboardingDone: () {
+                  navigatorKey.currentState
+                      ?.pushReplacementNamed('/');
+                },
+              ),
             );
         }
+      },
+    );
+  }
+}
+
+/// Decides whether to show onboarding or the app.
+///
+/// The check happens once per app start. Onboarding is only shown when no
+/// preset has ever been applied, so a configured user is never asked again.
+class _RootGate extends StatefulWidget {
+  const _RootGate({required this.isar, required this.onOnboardingDone});
+
+  final Isar isar;
+  final VoidCallback onOnboardingDone;
+
+  @override
+  State<_RootGate> createState() => _RootGateState();
+}
+
+class _RootGateState extends State<_RootGate> {
+  Future<bool>? _configured;
+
+  @override
+  void initState() {
+    super.initState();
+    _configured = PresetService.isConfigured();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _configured,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.data == true) {
+          return HomeShell(isar: widget.isar);
+        }
+        return OnboardingScreen(onDone: widget.onOnboardingDone);
       },
     );
   }

@@ -78,7 +78,13 @@ problem — 42 preference screens and 403 preference keys. We keep the capabilit
 
 ### 2.2 Navigation
 
-Three tabs, no drawer, no hamburger:
+Onboarding runs **once**, before the shell, and only when no preset has ever been applied:
+
+```
+[ Pick a persona ]  →  [ Review what it sets + friction ]  →  shell
+```
+
+Then three tabs, no drawer, no hamburger:
 
 ```
 [ Alarms ]   [ Sleep ]   [ You ]
@@ -124,6 +130,8 @@ Persona       preset, friction dial
 Data          export, import, backup
 About         version, license, privacy
 ```
+
+Persona lives in Settings so it can be changed later; first-run selection happens in onboarding.
 
 Each group is one screen with a short list. Nothing nested more than two levels deep.
 
