@@ -1,0 +1,54 @@
+{
+ "version": 1,
+ "name": "rise-icon",
+ "width": 24,
+ "height": 24,
+ "palette": {
+  "b": "#12122A",
+  "h": "#1E1E3C",
+  "s": "#2A2A50",
+  "r": "#FFB347",
+  "l": "#FFE29A",
+  "m": "#FFC15E",
+  "d": "#FF8C42"
+ },
+ "frames": [
+  {
+   "name": "icon",
+   "duration": 1000,
+   "ops": [
+    {
+     "op": "grid",
+     "x": 0,
+     "y": 0,
+     "rows": [
+      "bbbbbbbbbbbbbbbbbbbbbbbb",
+      "bbbbbbbbbbbbbbbbbbbbbbbb",
+      "bbbbbbbbbbbbbbbbbbbbbbbb",
+      "bbbbbbbbbbbbbbbbbbbbbbbb",
+      "bbbbbbbbbbbbbbbbbbbbbbbb",
+      "bbbbbbbbbbbrrbbbbbbbbbbb",
+      "bbbbbbbbbbbrrbbbbbbbbbbb",
+      "bbbbbbbrrbbrrbbrrbbbbbbb",
+      "bbbbbbbrrbbbbbbrrbbbbbbb",
+      "bbbbbbbbbbbbbbbbbbbbbbbb",
+      "bbbbbbbbllllllllbbbbbbbb",
+      "bbbbbbbllllllllllbbbbbbb",
+      "bbbbbbmmmmmmmmmmmmbbbbbb",
+      "bbbbbmmmmmmmmmmmmmmbbbbb",
+      "bbbbbmmmmmmmmmmmmmmbbbbb",
+      "bbbbddddddddddddddddbbbb",
+      "bbbbddddddddddddddddbbbb",
+      "ssssssssssssssssssssssss",
+      "hhhhhhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhhhhh",
+      "hhhhhhhhhhhhhhhhhhhhhhhh"
+     ]
+    }
+   ]
+  }
+ ]
+}
