@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -14,7 +12,7 @@ import 'services/alarm_service.dart';
 import 'services/notification_service.dart';
 import 'services/preset_service.dart';
 import 'services/sleep_tracking_service.dart';
-import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
 import 'screens/home_shell.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/alarm_ring_screen.dart';
@@ -161,41 +159,7 @@ class _WakeMeUpProAppState extends State<WakeMeUpProApp> with WidgetsBindingObse
       title: 'Rise',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF00F5FF), // Cyan
-          secondary: Color(0xFFFF00FF), // Magenta
-          surface: Color(0xFF1A1A2E),
-          error: Color(0xFFFF3366),
-        ),
-        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
-        scaffoldBackgroundColor: const Color(0xFF0F0F1E),
-        cardTheme: CardThemeData(
-          color: const Color(0xFF1A1A2E),
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-        ),
-        // Add smooth page transitions
-        pageTransitionsTheme: const PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          },
-        ),
-      ),
+      theme: buildAppTheme(),
       initialRoute: '/',
       onGenerateRoute: (settings) {
         // Check for pending alarm data on initial route
