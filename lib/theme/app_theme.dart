@@ -51,6 +51,15 @@ class AppColors {
   static const phaseRem = teal;
   static const phaseAwake = tealPale;
 
+  // ── Alternate phase palette (reference theme variant) ─────────────────────
+  // The reference app ships more than one graph palette. This is its
+  // olive/lime variant, recorded for completeness: deep #5A713C,
+  // light #799B33, awake #A6D725, actigraph #7FA31D. Not used yet; it needs a
+  // contrast check against our dark surfaces before it could be a user option.
+  static const altPhaseDeep = Color(0xFF5A713C);
+  static const altPhaseLight = Color(0xFF799B33);
+  static const altPhaseAwake = Color(0xFFA6D725);
+
   // ── Shape ─────────────────────────────────────────────────────────────────
   // Reference card_corner is 24dp, button_radius 8dp, activity margin 16dp.
   static const radiusCard = 24.0;
