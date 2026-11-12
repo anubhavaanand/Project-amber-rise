@@ -1,687 +1,434 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:isar/isar.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import '../models/alarm.dart';
-import '../services/sleep_tracking_service.dart';
-import '../services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Settings Screen - ALL PREMIUM FEATURES FREE!
+import '../models/persona_preset.dart';
+import '../services/notification_service.dart';
+import '../services/preset_service.dart';
+import '../services/sleep_tracking_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/rise_button.dart';
+import '../widgets/wheel_time_picker.dart';
+
+/// Settings.
+///
+/// Grouped by the question the user is asking, not by the app's internals, and
+/// searchable - with hundreds of settings in the reference implementation,
+/// search is the difference between "feature-heavy" and "unusable".
+///
+/// Every row here writes to a store that something actually reads. Rows that
+/// would only set a local variable are deliberately absent.
 class SettingsScreen extends StatefulWidget {
-  final Isar isar;
-  
   const SettingsScreen({super.key, required this.isar});
+
+  final dynamic isar;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // App settings
-  bool _darkMode = true;
-  bool _use24HourFormat = true;
-  bool _autoDeleteOldAlarms = false;
-  int _defaultSnoozeDuration = 5;
-  bool _hapticFeedback = true;
-  bool _gradualVolumeIncrease = true;
-  int _gradualVolumeDuration = 60;
-  bool _showMotivationalQuotes = true;
-  bool _weatherAnnouncement = false;
-  String _defaultMission = 'math';
-  int _defaultDifficulty = 3;
-  
-  // Smart features
-  bool _smartAlarmDefault = false;
-  int _smartAlarmWindow = 30;
-  bool _sleepTracking = true;
-  bool _autoSleepTracking = false;
+  String _query = '';
+
+  PersonaPreset? _preset;
+  Friction _friction = Friction.normal;
+
+  bool _autoTracking = false;
   bool _bedtimeReminder = false;
-  TimeOfDay _bedtimeReminderTime = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay _bedtime = const TimeOfDay(hour: 22, minute: 0);
+
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSleepSettings();
+    _load();
   }
 
-  void _loadSleepSettings() {
-    final svc = SleepTrackingService.instance;
+  Future<void> _load() async {
+    final preset = await PresetService.activePreset();
+    final friction = await PresetService.friction();
+    final service = SleepTrackingService.instance;
+
+    if (!mounted) return;
     setState(() {
-      _autoSleepTracking = svc.autoSleepTrackingEnabled;
-      _bedtimeReminder = svc.bedtimeReminderEnabled;
-      _bedtimeReminderTime = svc.bedtime;
+      _preset = preset;
+      _friction = friction;
+      _autoTracking = service?.autoSleepTrackingEnabled ?? false;
+      _bedtimeReminder = service?.bedtimeReminderEnabled ?? false;
+      _bedtime = service?.bedtime ?? const TimeOfDay(hour: 22, minute: 0);
+      _loading = false;
     });
   }
 
-  Future<void> _saveAutoSleepTracking(bool value) async {
-    await SleepTrackingService.instance
-        .saveSettings(autoSleepTracking: value);
-    setState(() => _autoSleepTracking = value);
+  Future<void> _setAutoTracking(bool value) async {
+    await SleepTrackingService.instance?.saveSettings(autoSleepTracking: value);
+    if (mounted) setState(() => _autoTracking = value);
   }
 
-  Future<void> _saveBedtimeReminder(bool value) async {
+  Future<void> _setBedtimeReminder(bool value) async {
     await SleepTrackingService.instance
-        .saveSettings(bedtimeReminder: value);
+        ?.saveSettings(bedtimeReminder: value);
     if (value) {
-      await NotificationService.scheduleBedtimeReminder(_bedtimeReminderTime);
+      await NotificationService.scheduleBedtimeReminder(_bedtime);
     } else {
       await NotificationService.cancelBedtimeReminder();
     }
-    setState(() => _bedtimeReminder = value);
+    if (mounted) setState(() => _bedtimeReminder = value);
   }
 
-  Future<void> _saveBedtime(TimeOfDay value) async {
-    await SleepTrackingService.instance.saveSettings(bedtime: value);
+  Future<void> _pickBedtime() async {
+    final picked = await showRiseTimePicker(
+      context,
+      initial: _bedtime,
+      title: 'Bedtime',
+    );
+    if (picked == null) return;
+    await SleepTrackingService.instance?.saveSettings(bedtime: picked);
     if (_bedtimeReminder) {
-      await NotificationService.scheduleBedtimeReminder(value);
+      await NotificationService.scheduleBedtimeReminder(picked);
     }
-    setState(() => _bedtimeReminderTime = value);
+    if (mounted) setState(() => _bedtime = picked);
+  }
+
+  Future<void> _setFriction(Friction friction) async {
+    await PresetService.setFriction(friction);
+    if (mounted) setState(() => _friction = friction);
+  }
+
+  Future<void> _pickPreset() async {
+    final selected = await showModalBottomSheet<PersonaPreset>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Persona',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            for (final p in presets)
+              ListTile(
+                leading: Text(p.icon, style: const TextStyle(fontSize: 20)),
+                title: Text(p.displayName),
+                subtitle: Text(p.tagline),
+                trailing: _preset?.id == p.id
+                    ? const Icon(Icons.check, color: AppColors.primary)
+                    : null,
+                onTap: () => Navigator.pop(context, p),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (selected == null) return;
+    // Selecting a persona re-applies its defaults, which is a deliberate,
+    // confirmed action - the same rule as onboarding.
+    await PresetService.applyPreset(selected);
+    await _load();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final groups = _visibleGroups();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1E),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
         children: [
-          // Pro badge - ALL FREE!
-          _buildProBadge(),
-          const SizedBox(height: 24),
-          
-          // Alarm defaults
-          _buildSection(
-            title: 'Alarm Defaults',
-            icon: Icons.alarm,
-            children: [
-              _buildSwitchTile(
-                title: 'Gradual Volume Increase',
-                subtitle: 'Slowly increase alarm volume',
-                value: _gradualVolumeIncrease,
-                onChanged: (v) => setState(() => _gradualVolumeIncrease = v),
-                premium: true,
-              ),
-              if (_gradualVolumeIncrease)
-                _buildSliderTile(
-                  title: 'Volume Fade Duration',
-                  value: _gradualVolumeDuration.toDouble(),
-                  min: 15,
-                  max: 120,
-                  divisions: 7,
-                  suffix: 's',
-                  onChanged: (v) => setState(() => _gradualVolumeDuration = v.round()),
-                ),
-              _buildDropdownTile(
-                title: 'Default Snooze Duration',
-                value: _defaultSnoozeDuration,
-                items: [1, 2, 3, 5, 10, 15, 20, 30],
-                suffix: ' min',
-                onChanged: (v) => setState(() => _defaultSnoozeDuration = v),
-              ),
-              _buildDropdownTile(
-                title: 'Default Mission',
-                value: _defaultMission,
-                items: MissionType.values.map((m) => m.name).toList(),
-                onChanged: (v) => setState(() => _defaultMission = v),
-              ),
-              _buildSliderTile(
-                title: 'Default Difficulty',
-                value: _defaultDifficulty.toDouble(),
-                min: 1,
-                max: 5,
-                divisions: 4,
-                onChanged: (v) => setState(() => _defaultDifficulty = v.round()),
-              ),
-            ],
+          _SearchField(
+            value: _query,
+            onChanged: (v) => setState(() => _query = v),
           ),
-          
-          // Smart Features
-          _buildSection(
-            title: 'Smart Features',
-            icon: Icons.auto_awesome,
-            premium: true,
-            children: [
-              _buildSwitchTile(
-                title: 'Smart Alarm (Default)',
-                subtitle: 'Wake during light sleep phase',
-                value: _smartAlarmDefault,
-                onChanged: (v) => setState(() => _smartAlarmDefault = v),
-                premium: true,
-              ),
-              if (_smartAlarmDefault)
-                _buildSliderTile(
-                  title: 'Smart Window',
-                  value: _smartAlarmWindow.toDouble(),
-                  min: 10,
-                  max: 45,
-                  divisions: 7,
-                  suffix: ' min',
-                  onChanged: (v) => setState(() => _smartAlarmWindow = v.round()),
-                ),
-              _buildSwitchTile(
-                title: 'Sleep Tracking',
-                subtitle: 'Monitor sleep quality',
-                value: _sleepTracking,
-                onChanged: (v) => setState(() => _sleepTracking = v),
-                premium: true,
-              ),
-              _buildSwitchTile(
-                title: 'Auto Sleep Tracking',
-                subtitle: 'Automatically start tracking when you go to bed',
-                value: _autoSleepTracking,
-                onChanged: _saveAutoSleepTracking,
-                premium: true,
-              ),
-              _buildSwitchTile(
-                title: 'Bedtime Reminder',
-                subtitle: 'Notify when it\'s time to sleep',
-                value: _bedtimeReminder,
-                onChanged: _saveBedtimeReminder,
-                premium: true,
-              ),
-              if (_bedtimeReminder)
-                _buildTimeTile(
-                  title: 'Bedtime',
-                  value: _bedtimeReminderTime,
-                  onChanged: _saveBedtime,
-                ),
-            ],
-          ),
-          
-          // Display
-          _buildSection(
-            title: 'Display',
-            icon: Icons.palette,
-            children: [
-              _buildSwitchTile(
-                title: 'Dark Mode',
-                subtitle: 'Use dark theme',
-                value: _darkMode,
-                onChanged: (v) => setState(() => _darkMode = v),
-              ),
-              _buildSwitchTile(
-                title: '24-Hour Format',
-                subtitle: 'Use 24-hour time format',
-                value: _use24HourFormat,
-                onChanged: (v) => setState(() => _use24HourFormat = v),
-              ),
-              _buildSwitchTile(
-                title: 'Motivational Quotes',
-                subtitle: 'Show quotes when alarm rings',
-                value: _showMotivationalQuotes,
-                onChanged: (v) => setState(() => _showMotivationalQuotes = v),
-                premium: true,
-              ),
-            ],
-          ),
-          
-          // Haptics & Feedback
-          _buildSection(
-            title: 'Haptics & Sound',
-            icon: Icons.vibration,
-            children: [
-              _buildSwitchTile(
-                title: 'Haptic Feedback',
-                subtitle: 'Vibrate on interactions',
-                value: _hapticFeedback,
-                onChanged: (v) => setState(() => _hapticFeedback = v),
-              ),
-              _buildSwitchTile(
-                title: 'Weather Announcement',
-                subtitle: 'Speak weather on wake',
-                value: _weatherAnnouncement,
-                onChanged: (v) => setState(() => _weatherAnnouncement = v),
-                premium: true,
-              ),
-            ],
-          ),
-          
-          // Backup & Export
-          _buildSection(
-            title: 'Backup & Export',
-            icon: Icons.cloud_upload,
-            premium: true,
-            children: [
-              _buildActionTile(
-                title: 'Export Alarms',
-                subtitle: 'Save alarms as JSON file',
-                icon: Icons.download,
-                onTap: _exportAlarms,
-                premium: true,
-              ),
-              _buildActionTile(
-                title: 'Import Alarms',
-                subtitle: 'Load alarms from JSON file',
-                icon: Icons.upload,
-                onTap: _importAlarms,
-                premium: true,
-              ),
-              _buildActionTile(
-                title: 'Export Sleep Data',
-                subtitle: 'Export sleep history as CSV',
-                icon: Icons.bedtime,
-                onTap: _exportSleepData,
-                premium: true,
-              ),
-            ],
-          ),
-          
-          // Data Management
-          _buildSection(
-            title: 'Data Management',
-            icon: Icons.storage,
-            children: [
-              _buildSwitchTile(
-                title: 'Auto-Delete Old Alarms',
-                subtitle: 'Remove one-time alarms after trigger',
-                value: _autoDeleteOldAlarms,
-                onChanged: (v) => setState(() => _autoDeleteOldAlarms = v),
-              ),
-              _buildActionTile(
-                title: 'Clear All Alarms',
-                subtitle: 'Delete all saved alarms',
-                icon: Icons.delete_forever,
-                onTap: _clearAllAlarms,
-                isDestructive: true,
-              ),
-              _buildActionTile(
-                title: 'Clear Statistics',
-                subtitle: 'Reset all tracking data',
-                icon: Icons.delete_sweep,
-                onTap: _clearStats,
-                isDestructive: true,
-              ),
-            ],
-          ),
-          
-          // About
-          _buildSection(
-            title: 'About',
-            icon: Icons.info,
-            children: [
-              _buildInfoTile('Version', '1.0.0'),
-              _buildInfoTile('Developer', 'Anubhav Anand'),
-              _buildActionTile(
-                title: 'Rate App',
-                subtitle: 'Leave a review',
-                icon: Icons.star,
-                onTap: () {},
-              ),
-              _buildActionTile(
-                title: 'Privacy Policy',
-                subtitle: 'View privacy information',
-                icon: Icons.privacy_tip,
-                onTap: () {},
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProBadge() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFFFD700).withValues(alpha: 0.3),
-            const Color(0xFF6366F1).withValues(alpha: 0.3),
+          for (final group in groups) ...[
+            _GroupHeader(group.title),
+            Card(
+              child: Column(children: group.rows),
+            ),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFFFD700).withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFD700).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.workspace_premium,
-              color: Color(0xFFFFD700),
-              size: 32,
-            ),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '🎉 ALL PREMIUM FEATURES UNLOCKED!',
-                  style: TextStyle(
-                    color: Color(0xFFFFD700),
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Enjoy all features for FREE, forever!',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          if (groups.isEmpty) const _NoResults(query: ''),
         ],
       ),
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required IconData icon,
-    required List<Widget> children,
-    bool premium = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            children: [
-              Icon(icon, color: const Color(0xFF00F5FF), size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (premium) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'FREE',
-                    style: TextStyle(
-                      color: Color(0xFFFFD700),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A2E),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(children: children),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
+  List<_Group> _visibleGroups() {
+    final q = _query.trim().toLowerCase();
+
+    bool matches(String label, String keywords) {
+      if (q.isEmpty) return true;
+      return label.toLowerCase().contains(q) ||
+          keywords.toLowerCase().contains(q);
+    }
+
+    final groups = <_Group>[];
+
+    final personaRows = <Widget>[
+      _NavRow(
+        icon: Icons.person_outline,
+        label: 'Persona',
+        value: _preset?.displayName ?? 'None',
+        onTap: _pickPreset,
+        keywords: 'persona preset student worker sleeper shift biohacker',
+      ),
+      _FrictionRow(
+        value: _friction,
+        onChanged: _setFriction,
+        keywords: 'friction adhd difficulty morning effort',
+      ),
+    ].where((row) => row is _NavRow
+        ? matches((row).label, (row).keywords)
+        : matches('Morning friction', 'friction adhd difficulty morning effort')).toList();
+
+    if (personaRows.isNotEmpty) {
+      groups.add(_Group('Persona', personaRows));
+    }
+
+    final sleepRows = <Widget>[
+      _SwitchRow(
+        icon: Icons.sensors,
+        label: 'Automatic sleep tracking',
+        subtitle: 'Start tracking when you go to bed',
+        value: _autoTracking,
+        onChanged: _setAutoTracking,
+      ),
+      _SwitchRow(
+        icon: Icons.notifications_none,
+        label: 'Bedtime reminder',
+        subtitle: 'A nudge when it is time for bed',
+        value: _bedtimeReminder,
+        onChanged: _setBedtimeReminder,
+      ),
+      _NavRow(
+        icon: Icons.bedtime_outlined,
+        label: 'Bedtime',
+        value: _fmtTime(_bedtime),
+        onTap: _pickBedtime,
+        keywords: 'bedtime sleep time night',
+      ),
+    ].where((row) {
+      if (row is _SwitchRow) {
+        return matches(row.label, '${row.label} ${row.subtitle}');
+      }
+      final nav = row as _NavRow;
+      return matches(nav.label, nav.keywords);
+    }).toList();
+
+    if (sleepRows.isNotEmpty) {
+      groups.add(_Group('Sleep tracking', sleepRows));
+    }
+
+    return groups;
   }
 
-  Widget _buildSwitchTile({
-    required String title,
-    String? subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-    bool premium = false,
-  }) {
-    return ListTile(
-      title: Row(
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white)),
-          if (premium) ...[
-            const SizedBox(width: 8),
-            const Icon(Icons.star, color: Color(0xFFFFD700), size: 14),
-          ],
-        ],
-      ),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12))
-          : null,
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeColor: const Color(0xFF00F5FF),
-      ),
-    );
+  static String _fmtTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+}
+
+class _Group {
+  const _Group(this.title, this.rows);
+  final String title;
+  final List<Widget> rows;
+}
+
+class _SearchField extends StatefulWidget {
+  const _SearchField({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.value);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  Widget _buildSliderTile({
-    required String title,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    String suffix = '',
-    required ValueChanged<double> onChanged,
-  }) {
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title, style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
-              Text(
-                '${value.round()}$suffix',
-                style: const TextStyle(color: Color(0xFF00F5FF), fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: const Color(0xFF6366F1),
-              inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
-              thumbColor: const Color(0xFF00F5FF),
-            ),
-            child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDropdownTile<T>({
-    required String title,
-    required T value,
-    required List<T> items,
-    String suffix = '',
-    required ValueChanged<T> onChanged,
-  }) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      trailing: DropdownButton<T>(
-        value: value,
-        dropdownColor: const Color(0xFF1A1A2E),
-        style: const TextStyle(color: Color(0xFF00F5FF)),
-        underline: const SizedBox(),
-        items: items.map((item) => DropdownMenuItem(
-          value: item,
-          child: Text('$item$suffix'),
-        )).toList(),
-        onChanged: (v) => v != null ? onChanged(v) : null,
-      ),
-    );
-  }
-
-  Widget _buildTimeTile({
-    required String title,
-    required TimeOfDay value,
-    required ValueChanged<TimeOfDay> onChanged,
-  }) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      trailing: TextButton(
-        onPressed: () async {
-          final time = await showTimePicker(
-            context: context,
-            initialTime: value,
-          );
-          if (time != null) onChanged(time);
-        },
-        child: Text(
-          value.format(context),
-          style: const TextStyle(color: Color(0xFF00F5FF)),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        decoration: const InputDecoration(
+          hintText: 'Search settings',
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
     );
   }
+}
 
-  Widget _buildActionTile({
-    required String title,
-    String? subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-    bool isDestructive = false,
-    bool premium = false,
-  }) {
-    final color = isDestructive ? const Color(0xFFFF3366) : const Color(0xFF00F5FF);
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+        child: Text(
+          title.toUpperCase(),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.1,
+            color: AppColors.onSurfaceVariant,
+          ),
+        ),
+      );
+}
+
+class _NavRow extends StatelessWidget {
+  const _NavRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.keywords = '',
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  final String keywords;
+
+  @override
+  Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: color),
-      title: Row(
+      leading: Icon(icon, size: 20, color: AppColors.onSurfaceVariant),
+      title: Text(label, style: const TextStyle(fontSize: 14.5)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title, style: TextStyle(color: isDestructive ? color : Colors.white)),
-          if (premium) ...[
-            const SizedBox(width: 8),
-            const Icon(Icons.star, color: Color(0xFFFFD700), size: 14),
-          ],
+          Text(
+            value,
+            style: TextStyle(fontSize: 13, color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(width: 6),
+          Icon(Icons.chevron_right, size: 18, color: AppColors.onSurfaceFaint),
         ],
       ),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12))
-          : null,
-      trailing: const Icon(Icons.chevron_right, color: Colors.white24),
       onTap: onTap,
     );
   }
+}
 
-  Widget _buildInfoTile(String title, String value) {
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
     return ListTile(
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      trailing: Text(value, style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+      leading: Icon(icon, size: 20, color: AppColors.onSurfaceVariant),
+      title: Text(label, style: const TextStyle(fontSize: 14.5)),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
+      ),
+      trailing: Switch(value: value, onChanged: onChanged),
     );
   }
+}
 
-  Future<void> _exportAlarms() async {
-    try {
-      final alarms = await widget.isar.alarms.where().findAll();
-      final data = alarms.map((a) => {
-        'time': a.time.toIso8601String(),
-        'label': a.label,
-        'isEnabled': a.isEnabled,
-        'repeatDays': a.repeatDays,
-        'missionType': a.missionType.name,
-        'missionDifficulty': a.missionDifficulty,
-        'soundPath': a.soundPath,
-        'volume': a.volume,
-        'vibrate': a.vibrate,
-      }).toList();
-      
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/alarms_backup.json');
-      await file.writeAsString(jsonEncode(data));
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exported ${alarms.length} alarms to ${file.path}')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
+class _FrictionRow extends StatelessWidget {
+  const _FrictionRow({
+    required this.value,
+    required this.onChanged,
+    this.keywords = '',
+  });
 
-  Future<void> _importAlarms() async {
-    // Simplified - in real app would use file picker
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Import feature - select a backup file')),
-    );
-  }
+  final Friction value;
+  final ValueChanged<Friction> onChanged;
+  final String keywords;
 
-  Future<void> _exportSleepData() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Exporting sleep data as CSV...')),
-    );
-  }
-
-  Future<void> _clearAllAlarms() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Clear All Alarms?', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'This will delete all your alarms. This cannot be undone.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Morning friction',
+            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete All'),
+          const SizedBox(height: 4),
+          Text(
+            'How much effort it takes to dismiss the alarm. Independent of your persona.',
+            style: TextStyle(fontSize: 12, color: AppColors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<Friction>(
+              segments: const [
+                ButtonSegment(value: Friction.low, label: Text('Low')),
+                ButtonSegment(value: Friction.normal, label: Text('Normal')),
+                ButtonSegment(value: Friction.high, label: Text('High')),
+              ],
+              selected: {value},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => onChanged(s.first),
+            ),
           ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      await widget.isar.writeTxn(() async {
-        await widget.isar.alarms.clear();
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All alarms deleted')),
-        );
-      }
-    }
   }
+}
 
-  Future<void> _clearStats() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Statistics cleared')),
+class _NoResults extends StatelessWidget {
+  const _NoResults({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: Center(
+        child: Text(
+          'Nothing matches "$query"',
+          style: TextStyle(color: AppColors.onSurfaceVariant, fontSize: 13),
+        ),
+      ),
     );
   }
 }
