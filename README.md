@@ -10,6 +10,10 @@
 
 &nbsp;
 
+<img src="docs/brand/poster.png" alt="Rise poster: tracks your sleep, prove you are awake, survives anything, fits your life" width="420" />
+
+&nbsp;
+
 ![Android](https://img.shields.io/badge/Android_8.0%2B-070A0E?style=for-the-badge&logo=android&logoColor=FFB347&labelColor=070A0E)
 ![Flutter](https://img.shields.io/badge/Flutter_3.50-070A0E?style=for-the-badge&logo=flutter&logoColor=FFB347&labelColor=070A0E)
 ![Kotlin](https://img.shields.io/badge/Kotlin-070A0E?style=for-the-badge&logo=kotlin&logoColor=FFB347&labelColor=070A0E)
@@ -34,23 +38,8 @@
 ### Why
 
 Most alarms fail at the only moment that matters: you are awake enough to silence them and asleep
-enough to forget why you got up.
-
-Rise closes that gap with three things — a native alarm that survives Doze, a mission you have to
-complete to dismiss it, and a wake-up check that catches you if you drifted back off.
-
-<br/>
-
-<div align="center">
-
-| | |
-|---|---|
-| 🌙 | **Tracks your sleep** and wakes you in light sleep, inside a window |
-| 🎯 | **Makes you prove it** — a task stands between you and the snooze button |
-| 🔒 | **Survives everything** — Doze, force-kill, reboot, low battery |
-| 🎚️ | **Fits your life** — student, 9-to-6, ADHD-friendly, shift worker, biohacker |
-
-</div>
+enough to forget why you got up. Rise closes that gap — a native alarm that survives Doze, a mission
+you have to complete to dismiss it, and a wake-up check that catches you if you drifted back off.
 
 ---
 
@@ -108,3 +97,15 @@ projects. Commercial use requires a separate license. See [LICENSE](LICENSE).
 
 Bug reports and pull requests welcome. One concern per change, and run `flutter analyze` and
 `flutter test` first.
+
+## Art
+
+The pixel art is generated, not drawn by hand. Recipes are in `docs/brand/`:
+
+| File | What it is |
+|---|---|
+| `night.json` → `night.gif` | Night panorama, 6 frames, twinkling stars and a shooting star |
+| `dawn.json` → `dawn.gif` | The same landscape at dawn |
+| `poster.json` → `poster.png` | The feature poster, drawn with a 5×7 bitmap font |
+
+Regenerate with `npx -y pixelbolt@0.15.0 render <recipe> --out <dir> --gif --gif-scale 4`.
