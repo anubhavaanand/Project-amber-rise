@@ -4,6 +4,8 @@ import 'package:isar/isar.dart';
 import '../models/alarm.dart';
 import '../services/alarm_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/rise_button.dart';
+import '../widgets/wheel_time_picker.dart';
 
 /// Create or edit one alarm.
 ///
@@ -92,10 +94,10 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-      helpText: 'Alarm time',
+    final picked = await showRiseTimePicker(
+      context,
+      initial: _selectedTime,
+      title: 'Alarm time',
     );
     if (picked != null) setState(() => _selectedTime = picked);
   }
@@ -174,9 +176,16 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
             expandedHeight: 208,
             backgroundColor: AppColors.background,
             surfaceTintColor: Colors.transparent,
-            title: Text(_labelController.text.isEmpty
-                ? 'Alarm'
-                : _labelController.text),
+            title: ValueListenableBuilder(
+              valueListenable: _labelController,
+              // Scoped rebuild: only this text updates per keystroke, not the
+              // whole scroll view. This was the source of the typing lag.
+              builder: (context, value, _) => Text(
+                value.text.isEmpty ? 'Alarm' : value.text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             actions: [
               if (!_isNew)
                 IconButton(
@@ -229,7 +238,6 @@ class _AlarmEditScreenState extends State<AlarmEditScreen> {
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      onChanged: (_) => setState(() {}),
                     ),
                   ],
                 ),
