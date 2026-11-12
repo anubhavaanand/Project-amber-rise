@@ -1,6 +1,23 @@
+<div align="center">
+
+<img src="docs/brand/sunrise-bar.svg" alt="" width="360" />
+
 # Rise
 
-**An alarm clock that does not accept "just five more minutes."**
+### The alarm clock that makes sure you're actually awake.
+
+<sub>Deep black. One warm accent. No five more minutes.</sub>
+
+&nbsp;
+
+![Android](https://img.shields.io/badge/Android_8.0%2B-070A0E?style=for-the-badge&logo=android&logoColor=FFB347&labelColor=070A0E)
+![Flutter](https://img.shields.io/badge/Flutter_3.50-070A0E?style=for-the-badge&logo=flutter&logoColor=FFB347&labelColor=070A0E)
+![Kotlin](https://img.shields.io/badge/Kotlin-070A0E?style=for-the-badge&logo=kotlin&logoColor=FFB347&labelColor=070A0E)
+![License](https://img.shields.io/badge/Noncommercial-070A0E?style=for-the-badge&logoColor=FFB347&labelColor=070A0E)
+
+</div>
+
+---
 
 Rise is an Android alarm app built around one idea: the alarm is only useful if you are actually
 awake when it goes off. So it pairs an unkillable native alarm with wake-up missions, sleep-phase

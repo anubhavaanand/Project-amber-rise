@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="6" viewBox="0 0 720 6" role="img" aria-label="Rise">
+  <defs>
+    <linearGradient id="rise" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#E5E5E5"/>
+      <stop offset="26%"  stop-color="#B2DFDB"/>
+      <stop offset="48%"  stop-color="#80CBC4"/>
+      <stop offset="66%"  stop-color="#4DB6AC"/>
+      <stop offset="84%"  stop-color="#FFB347"/>
+      <stop offset="100%" stop-color="#FF8C42"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="6" rx="3" fill="url(#rise)"/>
+</svg>
