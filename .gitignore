@@ -124,7 +124,8 @@ app.*.map.json
 docs/brand/*.json
 docs/brand/font.py
 docs/brand/README.md
-design/
+/design/
+docs/design/
 
 # Tooling / editor metadata
 .serena/
