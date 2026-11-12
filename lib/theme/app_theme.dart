@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Rise's colour system.
 ///
@@ -60,6 +59,21 @@ class AppColors {
   static const gutter = 16.0;
 }
 
+/// Replaces the weight on a style with an explicit variable-font axis.
+///
+/// Inter is a variable font; setting `fontWeight` alone does not move the
+/// `wght` axis, so the axis is set explicitly.
+TextStyle _w(TextStyle? base, double weight) {
+  final style = base ?? const TextStyle();
+  return style.copyWith(
+    fontWeight: FontWeight.values.firstWhere(
+      (w) => w.value == weight,
+      orElse: () => FontWeight.w400,
+    ),
+    fontVariations: [FontVariation('wght', weight)],
+  );
+}
+
 /// Rise is dark-first. A light theme is deliberately absent: a half-built one
 /// would look worse than none, and the deep-black palette is the product.
 ThemeData buildAppTheme() {
@@ -88,10 +102,31 @@ ThemeData buildAppTheme() {
 
   return base.copyWith(
     colorScheme: colorScheme,
-    textTheme: GoogleFonts.interTextTheme(base.textTheme).apply(
-      bodyColor: AppColors.onSurface,
-      displayColor: AppColors.onSurface,
-    ),
+    // Inter is bundled as an asset (assets/fonts/Inter.ttf), not fetched at
+    // runtime. GoogleFonts downloaded it on first launch and swapped it in,
+    // which caused a visible reflow and needed network on a cold start.
+    textTheme: base.textTheme
+        .apply(
+          fontFamily: 'Inter',
+          bodyColor: AppColors.onSurface,
+          displayColor: AppColors.onSurface,
+        )
+        .copyWith(
+          displayLarge: _w(base.textTheme.displayLarge, 700),
+          displayMedium: _w(base.textTheme.displayMedium, 600),
+          displaySmall: _w(base.textTheme.displaySmall, 600),
+          headlineMedium: _w(base.textTheme.headlineMedium, 600),
+          headlineSmall: _w(base.textTheme.headlineSmall, 600),
+          titleLarge: _w(base.textTheme.titleLarge, 600),
+          titleMedium: _w(base.textTheme.titleMedium, 600),
+          titleSmall: _w(base.textTheme.titleSmall, 600),
+          bodyLarge: _w(base.textTheme.bodyLarge, 400),
+          bodyMedium: _w(base.textTheme.bodyMedium, 400),
+          bodySmall: _w(base.textTheme.bodySmall, 400),
+          labelLarge: _w(base.textTheme.labelLarge, 600),
+          labelMedium: _w(base.textTheme.labelMedium, 500),
+          labelSmall: _w(base.textTheme.labelSmall, 600),
+        ),
 
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.background,
