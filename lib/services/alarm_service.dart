@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:isar/isar.dart';
 import '../models/alarm.dart';
+import '../models/alarm_stats.dart';
 
 class AlarmService {
   static const MethodChannel _channel = MethodChannel('com.rise.app.alarm');
@@ -163,6 +164,42 @@ class AlarmService {
     final afterIdeal = sleepStart.add(Duration(minutes: idealSleepMinutes));
     final lowerBound = afterIdeal.isAfter(windowStart) ? afterIdeal : windowStart;
     return lowerBound.isBefore(trigger) ? lowerBound : trigger;
+  }
+
+  /// Record one alarm outcome.
+  ///
+  /// Nothing wrote `AlarmStats` before, so snooze counts, wake delay and
+  /// mission times were permanently empty even though the stats screen read
+  /// them. Call this on every dismiss and snooze.
+  static Future<void> recordOutcome({
+    required int alarmId,
+    required DateTime scheduledTime,
+    required int snoozeCount,
+    required int missionAttempts,
+    required int missionSeconds,
+    required bool dismissed,
+    String missionType = 'math',
+    String? notes,
+  }) async {
+    if (_isar == null) return;
+    try {
+      final stats = AlarmStats.create(
+        alarmId: alarmId,
+        scheduledTime: scheduledTime,
+      )
+        ..snoozeCount = snoozeCount
+        ..missionAttempts = missionAttempts
+        ..missionSuccessTime = missionSeconds
+        ..dismissed = dismissed
+        ..missionType = missionType
+        ..actualWakeTime = DateTime.now()
+        ..notes = notes;
+      await _isar!.writeTxn(() async {
+        await _isar!.alarmStats.put(stats);
+      });
+    } catch (e) {
+      print('❌ Error recording alarm stats: $e');
+    }
   }
 
   /// Stop currently ringing alarm

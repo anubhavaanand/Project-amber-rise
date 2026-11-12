@@ -30,6 +30,10 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
   int _snoozeCount = 0;
   static const int _maxSnoozes = 3;
   static const List<int> _snoozeDurations = [9, 5, 3]; // Decreasing snooze times
+
+  /// When the mission became visible, so completion time can be recorded.
+  DateTime? _missionShownAt;
+  int _missionAttempts = 0;
   
   @override
   void didChangeDependencies() {
@@ -83,9 +87,24 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
   }
   
   void _onMissionComplete() async {
+    final missionSeconds = _missionShownAt == null
+        ? 0
+        : DateTime.now().difference(_missionShownAt!).inSeconds;
+
     // Stop alarm sound
     await AlarmService.stopAlarm();
-    
+
+    // Record the outcome. Nothing wrote AlarmStats before, so the stats
+    // screen and the You-tab streak had no data to read.
+    await AlarmService.recordOutcome(
+      alarmId: _alarmId,
+      scheduledTime: DateTime.now().subtract(Duration(seconds: missionSeconds)),
+      snoozeCount: _snoozeCount,
+      missionAttempts: _missionAttempts + 1,
+      missionSeconds: missionSeconds,
+      dismissed: true,
+      missionType: _missionType.name,
+    );
     // Schedule wake-up verification
     await NotificationService.scheduleWakeUpCheck(_alarmId);
     
@@ -298,7 +317,18 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> {
     
     // Stop current alarm
     await AlarmService.stopAlarm();
-    
+
+    // Record the snooze so the stats have a count.
+    await AlarmService.recordOutcome(
+      alarmId: _alarmId,
+      scheduledTime: DateTime.now().add(Duration(minutes: snoozeDuration)),
+      snoozeCount: _snoozeCount,
+      missionAttempts: _missionAttempts,
+      missionSeconds: 0,
+      dismissed: false,
+      missionType: _missionType.name,
+      notes: 'snoozed',
+    );
     // Schedule snooze alarm
     final snoozeTime = DateTime.now().add(Duration(minutes: snoozeDuration));
     
