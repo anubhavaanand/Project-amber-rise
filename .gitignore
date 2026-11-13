@@ -125,7 +125,6 @@ docs/brand/*.json
 docs/brand/font.py
 docs/brand/README.md
 /design/
-docs/design/
 
 # Tooling / editor metadata
 .serena/
